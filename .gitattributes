@@ -1,0 +1,8 @@
+# Every snapshot in this repo (CSV / JSON / HTML) is LF + UTF-8 without BOM, so this
+# normalization never changes bytes and the sha256 ledger in data/synthetic/manifest.json
+# stays valid in any clone. Any future binary or non-LF snapshot MUST be marked `-text`
+# here, otherwise checkout rewrites its bytes and the ledger silently fails
+# (`git status` cannot see it).
+* text=auto eol=lf
+*.png binary
+*.pdf binary

@@ -1,0 +1,117 @@
+# anomaly-atlas · 时序异常标注可视化 Skill
+
+**把一条时间序列变成"可复算的异常档案"——每个异常区间都带检测器、参数、得分、源行号，并能在浏览器里当场重算出同一集合（run-spec → sha256 → 浏览器复算 → VERIFIED 徽章）。**
+
+时间序列异常检测在算法层已经非常成熟：有通用异常检测库、时序建模库、部分观测时序学习库（此处仅作事实引用）。它们都是**引擎**——能力齐全，但交付物止步于"函数返回一个标签数组"。真正消耗分析师时间的是**事后解释与复核**：这条序列里到底有几段异常？每段从哪一行到哪一行？是哪类检测器、用什么窗口和阈值判出来的？换一个人换一台机器，还能不能得到同一批异常点？把结论发给同事时，对方凭什么相信图上的色块不是"画上去的"？
+
+anomaly-atlas 的回答是：**异常集由 run-spec 唯一决定，并由读者自己的浏览器重算出同一个 `sha256`**。做不出这一点，产品就退化成"检测库 + 好看图表"的薄封装。
+
+- 输入：一份 CSV 时间序列（时间戳列 + 数值列，可选 `series_id` 支持多指标）
+- 输出：单个 HTML 文件——主序列、异常区间带、峰值标记、缺口纹理、Episode 卡片、多指标 small multiples、异常密度热条；内嵌原始数据与手写 JavaScript 镜像，加载时当场重跑，与构建时指纹逐位一致才显示 **VERIFIED**，不一致显示 **MISMATCH** 并指出首个差异点
+- 隐私红线：**数据纯本地处理、零上传**；HTML 零外部请求（无 CDN、无外链字体、无外链脚本）。使用前请自行确认数据可被处理
+
+## 当前状态（诚实口径）
+
+本项目按里程碑推进，**当前已完成 M0 骨架**（计划文档 + 目录结构 + CLI 退出码契约 + CI 预置），下一步是 M1 数据先行。今天可用的东西只有：
+
+```bash
+# 源码直跑（Python >= 3.8，零第三方依赖；Windows 用 py 而非 python）
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli --help
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli --version
+
+# 或先 pip install -e .，之后省掉 PYTHONPATH 与 -m 前缀
+anomaly-atlas --help
+```
+
+已注册但**尚未落地**的子命令（`profile` / `detect` / `selftest` / `verify` / `render` / `check-report`）当前一律以退出码 **3**（阶段未就绪）返回，**不产出任何假结果**——模块在每个里程碑落地时，同一提交内退役它的就绪标记并补一条离线冒烟。
+
+| 里程碑 | 内容 | 状态 |
+| --- | --- | --- |
+| M0 骨架 | plan/02–06 + 包结构 + CLI 退出码契约 + CI 预置 | ✅ 2026-10-17（双解释器 3.8/3.12 各 31 项测试全绿 + 干净 venv 31 项全绿；退出码冒烟 14 条逐条核对；变异验证 4/4 变红；未接远端，CI 待首推验证） |
+| M1 数据先行 | CSV 契约、整数时间轴、数据剖面、合成时序与真值冻结 | 未开始 |
+| M2 检测内核 | 4 类检测器、Episode 合并与严重度排序、规范 JSON 与 sha256 | 未开始 |
+| M3 浏览器复算（硬门禁） | 手写 JS 镜像 + 内联数据 + VERIFIED/MISMATCH + 首个差异点 | 未开始 |
+| M4 渲染 | 单文件标注图（零外链、可打印、灵敏度滑杆） | 未开始 |
+| M5 报告门禁 | Episode 命名/原因 + 数字白名单 + SKILL.md/README 定稿 | 未开始 |
+| M6 发布 | tag + GitHub Release + 发布留档 | 未开始 |
+
+逐棒的 DoD 与实测证据见 [`plan/05-里程碑.md`](plan/05-里程碑.md)；模块级设计见 [`plan/03-模块详设.md`](plan/03-模块详设.md)；数值口径的唯一权威定义在 [`data/README.md`](data/README.md) §4。
+
+## 确定性声明（本项目的全部卖点）
+
+**模型只做表达层**（数据语义判断、阈值取舍的**理由**、Episode 命名与可能原因、叙事文本），异常点、参数最终值、排序、指纹全部由确定性代码产出。模型不得手改异常点、不得新增未检测到的点、不得在报告中写出未命中 `facts.json` 的数字（由代码门禁而非口头约束）。
+
+落地后以下每个数字都可被独立重算，且哈希验证不需要信任作者机器：
+
+| 数字 / 结论 | 重算方式 |
+| --- | --- |
+| 数据剖面（节奏、缺口、缺失段、零值段、重复时间戳） | 纯规则计算；同一 CSV 连续两次运行 `profile.json` 逐字节一致 |
+| 4 类检测器的判定与得分 | run-spec 里记录解析后的生效参数；异常集由规范 JSON（只含整数与字符串）序列化后取 `sha256` |
+| Episode 起止 / 时长 / 峰值 / 源行号 / `episode_id` | 合并口径 = 时间域 `max_gap_ms`；严重度排序键固定（`peak_score_q` → `duration_ms` → `start_row` → `detector`） |
+| 浏览器复算结论（VERIFIED / MISMATCH） | HTML 内联原始数据 + 手写 JS 镜像重跑同一套算法 → 规范化 → `sha256` → 与构建指纹逐位比较；同时逐点比较并定位首个差异点 |
+| 报告中的每个数字 | 必须命中 `facts.json` 的某条 `fact_id`，未命中即中止并列出上下文 |
+
+哈希可复算的两个前提条件（工程上必须成立，否则复算会随机 MISMATCH）：**规范 JSON 只含整数与字符串**（浮点在哈希边界做整数定点化，禁止浮点格式化参与哈希），以及**检测路径禁用一切超越函数与库归约函数**（只用 IEEE-754 基本运算，幂次展开为乘法）。理由与纪律见 [`plan/02-架构与技术选型.md`](plan/02-架构与技术选型.md) §3 与 `data/README.md` §4.3。
+
+> 上面这张表是**目标口径**，尚未由实测覆盖：M2 的 `selftest`（fixture 哈希、真值逐段对账、改参数必改哈希）与 M3 的 `verify`（Node 复算对账 + 篡改探活）落地后，README 会补上可直接复制的验证命令与实测证据。
+
+## 使用方式（计划形态，M1–M5 落地后回填实测）
+
+```bash
+# 1. 数据剖面 + 质量卡
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli profile <你的.csv> -o profile.json
+
+# 2. 检测 → run.json / anomalies.json / facts.json / 异常集 sha256
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli detect <你的.csv> --out-dir out
+
+# 3. 渲染单文件 HTML 档案（断网双击可开）
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli render <你的.csv> -o atlas.html
+
+# 4. 复算复核（Node 通道；浏览器徽章是人读的那一面）
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli verify atlas.html
+```
+
+退出码契约：**0** 成功；**1** 门禁/自检发现缺陷（`selftest` 失败、数字白名单未命中、复算 MISMATCH）；**2** 用法与输入错误（缺文件、CSV 契约校验失败、未知子命令）；**3** 阶段未就绪（骨架期标记，随模块落地整项退役）；**4** 环境前提不满足（如 `verify` 找不到 Node——**不回退、不静默跳过**）。
+
+## 仓库结构
+
+```
+SKILL.md                    Agent Skill 主入口（触发条件 / 工作流 / 退出码表 / 模型分工）
+src/anomaly_atlas/          cli（编排+退出码+编码守卫）、timebase/csvio/profile（M1）、
+                            canon/detect/episodes（M2）、mirror + mirror/zaa_mirror.js（M3）、
+                            layout/render（M4）、facts/report（M5）、selftest（基准套件）
+tools/                      合成时序与真值生成器（M1）、Node 复算对账（M3）
+data/README.md              台账 + 数值口径唯一权威定义处（§4：检测器参数 / 合并排序 / 规范 JSON 与哈希 / 错误码 / 数字白名单）
+data/synthetic/ data/truth/ M1 冻结产物：合成时序 + 植入真值 + 真值 hash（禁手改）
+data/samples/               最小示例 CSV
+examples/                   M4 起：示例 HTML 产物
+tests/                      pytest 套件（含真值对账、双跑一致、零外链、可证伪探针）
+plan/                       题目文档、架构、模块详设、数据计划、里程碑、交付对标、决策记录、HANDOFF
+```
+
+## 已知环境问题
+
+- **Windows 用 `py` 不用 `python`**：后者常是微软商店占位符。一律 `py -X utf8`（UTF-8 模式防 cp936 控制台编码坑）。
+- **双解释器**：本仓库在 Python 3.8 与 3.12 双通道下跑全量测试（`py -3.8` / `py -3.12` 可显式指定）。跨版本差异以 CI 四矩阵为准；"本机能跑"不是跨版本证据。
+- **Git Bash 的 `/tmp`**：Windows 原生 Python 看不见 Git Bash 的 `/tmp`，临时文件请用工作区相对路径或系统临时目录。
+- **源码直跑 vs 安装跑**：`PYTHONPATH=src` 是源码直跑口径；`pip install -e .` 后 `anomaly-atlas` 命令等价，且该命令只有 Python 标准库依赖（零第三方运行时依赖）。
+- **`verify` 需要 Node**：本机没有 Node 时该命令以退出码 4 明确失败，不静默跳过；此时仍可直接用浏览器打开 HTML 看徽章（人读通道）。
+
+## 边界与 roadmap（首期不做）
+
+- 不做通用图表选型/美化：图形只服务异常语义。
+- 不做流程挖掘/决策树（DFG、变体、瓶颈属于其他题目）。
+- 不做深度学习检测器：首期只做可解释、可复算的统计与规则方法；不引入训练、不引入 GPU，**也不留半成品接口**以免被误认为已支持。
+- 不做实时流式监控：只做离线 CSV → 单文件档案，不做常驻服务与告警推送。
+- 不做在线渲染/云服务：一切本地；HTML 零外部请求。
+- 扩展路线图（不计入首期交付物）：token replay 式流程分析、多指标联动筛选、基准数据集对照。
+
+## 品牌与合规
+
+- 不冒用任何第三方库商标；比较性表述仅作事实引用；仓库名与 Skill 名不含第三方品牌词。
+- 合成数据场景明确标注"（虚构）"，不影射真实企业、真实业务数据或真实事件。
+- 数据纯本地处理、零上传；HTML 零外部请求。
+
+## License
+
+MIT，见 [LICENSE](LICENSE)。

@@ -1,0 +1,41 @@
+name: ci
+
+# Every push/tag event is expected to produce exactly one run and to be green; the
+# release milestone reconciles that (plan/05 M6). A tag push produces its own run and
+# must be green too.
+on: [push, pull_request, workflow_dispatch]
+
+# PYTHONUTF8=1 covers every step in this job, including the ones we do not type
+# ourselves (`python -m pytest`), plus subprocess decode paths that `-X utf8` cannot reach.
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: ["3.8", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dev extra
+        run: python -m pip install -e ".[dev]"
+      - name: Run tests
+        run: python -m pytest -q
+      # Smoke the two import paths separately: `python -m <pkg>` and the bare console
+      # script resolve `sys.path` differently, so passing one proves nothing about the
+      # other (the "install surface" family).
+      - name: CLI smoke (module form)
+        run: python -m anomaly_atlas.cli --help
+      - name: CLI smoke (bare form)
+        run: anomaly-atlas --help
+      - name: CLI smoke (version)
+        run: anomaly-atlas --version
+      # Each newly delivered command adds a smoke step here in the same commit that
+      # delivers it, and retires any stale exit-code assertion it replaces (an assertion
+      # written for a placeholder becomes a lie the moment the module lands).

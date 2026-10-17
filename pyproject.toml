@@ -27,5 +27,10 @@ dev = ["pytest>=7"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# The M3 mirror is data next to the module (`mirror/zaa_mirror.js`), not importable Python: it has
+# to travel with the package, or an installed `verify` cannot find the mirror it must run.
+[tool.setuptools.package-data]
+anomaly_atlas = ["mirror/*.js"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

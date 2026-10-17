@@ -58,5 +58,23 @@ jobs:
         run: anomaly-atlas detect data/samples/minimal.csv --out-dir out/smoke-minimal
       - name: CLI smoke (selftest: ledger + truth reconciliation + digest tripwire + probes)
         run: python -m anomaly_atlas.cli selftest
+      # M3: the browser recomputation gate. Node is preinstalled on the runners, but the presence
+      # check is explicit -- the gate answers exit 4 when Node is missing, and a step that silently
+      # degraded into "nothing to check" would be exactly the failure mode the contract forbids.
+      - name: Node is present (the recomputation gate is never silently skipped)
+        run: node --version
+      - name: CLI smoke (carrier page + Node recomputation parity)
+        run: |
+          python tools/mirror_parity.py --build out/carrier.html
+          python -m anomaly_atlas.cli verify out/carrier.html
+          python -m anomaly_atlas.cli verify examples/atlas.html
+      - name: CLI smoke (verify tampers one inline point: must MISMATCH, localise, exit 1)
+        run: |
+          python -c "import subprocess,sys;r=subprocess.run([sys.executable,'-m','anomaly_atlas.cli','verify','examples/atlas.html','--tamper-index','3'],capture_output=True,text=True);print(r.stdout+r.stderr);sys.exit(0 if r.returncode==1 and 'MISMATCH' in r.stderr and 'energy_kwh' in r.stdout else 1)"
+      - name: CLI smoke (verify without Node exits 4, never 0)
+        run: |
+          python -c "import subprocess,sys;r=subprocess.run([sys.executable,'-m','anomaly_atlas.cli','verify','examples/atlas.html','--node','no-such-node-executable'],capture_output=True,text=True);print(r.stdout+r.stderr);sys.exit(0 if r.returncode==4 else 1)"
+      - name: CLI smoke (mirror_parity on the artifact the repository builds)
+        run: python tools/mirror_parity.py --html examples/atlas.html
       - name: Generator smoke (frozen artifacts + bit-for-bit regeneration)
         run: python tools/gen_synthetic_series.py --check

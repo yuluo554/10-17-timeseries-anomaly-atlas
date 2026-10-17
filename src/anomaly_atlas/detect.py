@@ -6,7 +6,8 @@ API:
   rolling_iqr(values, window, iqr_mult, min_valid) -> [(index, score)]
   stl_resid_z(values, positions, period_points, inner, outer, window, k, min_valid)
   rules(values, spec) -> [(index, score, rule_name)]
-  detect_all(parsed, spec) -> (run_document, episodes, summary)
+  detect_all(parsed, spec) -> (run_document, anomaly_set)
+  detect_all_detailed(parsed, spec) -> (run_document, anomaly_set, detections)
   cmd_detect(csv_path, spec_path, out_dir) -> int
 
 Mirrorable arithmetic only (plan/02 3.2): + - * / floor ceil abs min max and comparisons; powers
@@ -1065,6 +1066,18 @@ def detect_all(parsed, resolved):
     particular the resolved `period_points` and, for every parameter, the value that was actually
     used -- so it is the only thing a recomputation needs (K8).
     """
+    run_document, anomaly_set, _detections = detect_all_detailed(parsed, resolved)
+    return run_document, anomaly_set
+
+
+def detect_all_detailed(parsed, resolved):
+    """`detect_all` plus the detector output the archive was built from (M3).
+
+    The browser artifact carries the anomalous *points* as well as the episodes, so the carrier
+    builder needs the detections. Handing them back from the same pass -- rather than re-running
+    the detectors -- is not only cheaper: it makes the payload's point set the one the archive was
+    actually assembled from, so the two cannot drift apart by construction.
+    """
     period_points = resolved["period_points"]
     estimates = []
     if period_points is None:
@@ -1108,7 +1121,7 @@ def detect_all(parsed, resolved):
         "series": series_facts(parsed),
     }
     canon.assert_hashable(run_document)
-    return run_document, canon.build_anomaly_set(run_document, episodes, summary)
+    return run_document, canon.build_anomaly_set(run_document, episodes, summary), detections
 
 
 def cmd_detect(csv_path, spec_path, out_dir):

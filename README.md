@@ -12,7 +12,7 @@ anomaly-atlas 的回答是：**异常集由 run-spec 唯一决定，并由读者
 
 ## 当前状态（诚实口径）
 
-本项目按里程碑推进，**当前已完成 M2 检测内核**（4 类检测器 + Episode 合并与严重度排序 + 规范指纹 + 基准自检套件），下一步是 M3 浏览器复算。今天真正可用的东西：
+本项目按里程碑推进，**当前已完成 M3 浏览器复算硬门禁**（手写 JS 镜像 + 产物自带数据与指纹 + Node 对账 + 篡改必红并定位），下一步是 M4 单文件标注图。今天真正可用的东西：
 
 ```bash
 # 源码直跑（Python >= 3.8，零第三方依赖；Windows 用 py 而非 python）
@@ -30,6 +30,11 @@ cat out/anomaly_set.sha256
 # 基准自检：冻结台账 + 真值全段对账 + 冻结指纹 + 改参数必改哈希 + 双跑一致（各带可证伪探针）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli selftest
 
+# 复算硬门禁：产物自带的手写 JS 镜像在 Node 下重算出同一 sha256（未通过复算的 HTML 不构成交付物）
+PYTHONPATH=src py -X utf8 tools/mirror_parity.py --build examples/atlas.html   # 落 M3 最小载体页
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli verify examples/atlas.html      # -> VERIFIED, exit 0
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli verify examples/atlas.html --tamper-index 3   # -> MISMATCH + 定位, exit 1
+
 # 冻结产物自检：manifest 台账 + 重生成逐字节比对（篡改/缺失 -> exit 2）
 py -X utf8 tools/gen_synthetic_series.py --check
 
@@ -43,14 +48,16 @@ anomaly-atlas --help
 
 `selftest` 已按契约落地：五项检查（冻结台账 / 真值全段对账 39/39 + 6 条合并探针 / 冻结指纹 / 改参数必改哈希 / 剖面双跑）各带**可证伪探针**，探针不变红即计为失败（exit 1）；找不到冻结数据 → exit 4（不静默通过）。
 
-已注册但**尚未落地**的子命令（`verify` / `render` / `check-report`）当前一律以退出码 **3**（阶段未就绪）返回，**不产出任何假结果**——模块在每个里程碑落地时，同一提交内退役它的就绪标记并补一条离线冒烟。
+`verify` 已按契约落地：读出产物**自带**的手写 JS 镜像、内联数据与构建指纹，在 Node 下跑同一流程，与构建值**逐字节比较**（同时逐点比较检测点集合并给出首个差异点）；一致 → VERIFIED（exit 0），不一致 → MISMATCH + 定位（exit 1）。`--tamper-index <n>` 把第 n 个内联样本位移一个大偏移，要求**必变红且首个差异点落在被篡改的那个 series**（否则按探针失败计）。**Node 缺失 → exit 4** 并给两条补救路径，**不静默跳过**。产物不是本契约的产物 → exit 2。
+
+已注册但**尚未落地**的子命令（`render` / `check-report`）当前一律以退出码 **3**（阶段未就绪）返回，**不产出任何假结果**——模块在每个里程碑落地时，同一提交内退役它的就绪标记并补一条离线冒烟。`examples/atlas.html` 现为 **M3 最小载体页**（只做复算徽章），M4 会在同一嵌入契约上把它替换成完整标注图。
 
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |
 | M0 骨架 | plan/02–06 + 包结构 + CLI 退出码契约 + CI 预置 | ✅ 2026-10-17（双解释器 3.8/3.12 各 31 项测试全绿 + 干净 venv 31 项全绿；退出码冒烟 14 条逐条核对；变异验证 4/4 变红；未接远端，CI 待首推验证） |
 | M1 数据先行 | CSV 契约、整数时间轴、数据剖面、合成时序与真值冻结 | ✅ 2026-10-17（`profile` 落地并退役退出码 3；211 项测试在 3.8 / 3.12 / 干净 venv 三处全绿；全量 fixture 行被 `datetime` 交叉证伪；真值哈希与冻结产物台账固化；变异验证 10/10 变红；未接远端，CI 待首推验证） |
 | M2 检测内核 | 4 类检测器、Episode 合并与严重度排序、规范 JSON 与 sha256 | ✅ 2026-10-17（`detect`/`selftest` 落地并退役退出码 3；411 项测试在 3.8 / 3.12 / 干净 venv 三处全绿，安装面产物与源码直跑逐字节相同；真值全段对账 39/39 + 6/6 合并探针；周期估计 288 与植入一致；冻结指纹 `6020a3d3…`；参数面 20 项"改即变"；无超越函数门实测抓出并修掉 `10 ** d`；变异验证 16/16 变红；未接远端，CI 待首推验证） |
-| M3 浏览器复算（硬门禁） | 手写 JS 镜像 + 内联数据 + VERIFIED/MISMATCH + 首个差异点 | 未开始 |
+| M3 浏览器复算（硬门禁） | 手写 JS 镜像 + 内联数据 + VERIFIED/MISMATCH + 首个差异点 | ✅ 2026-10-17（`verify` 落地并退役退出码 3；474 项测试在 3.8 / 3.12 / 干净 venv 三处全绿；产物自带镜像在 Node 下重算与构建指纹逐字节相等；`--tamper-index` 覆盖三个 series 均 MISMATCH 且定位到被篡改的 series；SHA-256 与定点规则两组向量双侧断言；变异验证 14/14 变红；退出码冒烟 29 条含 Node 缺失 exit 4 且零副作用；wheel 内含镜像且安装面重建产物与仓库产物逐字节相同；未接远端，CI 待首推验证） |
 | M4 渲染 | 单文件标注图（零外链、可打印、灵敏度滑杆） | 未开始 |
 | M5 报告门禁 | Episode 命名/原因 + 数字白名单 + SKILL.md/README 定稿 | 未开始 |
 | M6 发布 | tag + GitHub Release + 发布留档 | 未开始 |
@@ -73,9 +80,9 @@ anomaly-atlas --help
 
 哈希可复算的两个前提条件（工程上必须成立，否则复算会随机 MISMATCH）：**规范 JSON 只含整数与字符串**（浮点在哈希边界做整数定点化，禁止浮点格式化参与哈希），以及**检测路径禁用一切超越函数与库归约函数**（只用 IEEE-754 基本运算，幂次展开为乘法）。理由与纪律见 [`plan/02-架构与技术选型.md`](plan/02-架构与技术选型.md) §3 与 `data/README.md` §4.3。
 
-> 表中**数据剖面**一行已由实测覆盖（M1）：同一个 CSV 连续两次 `profile` 输出逐字节一致，且源码直跑与 `pip install -e .` 安装面产出同一份字节。**检测与 Episode**、**run-spec 可复算**两行已由 M2 的 `selftest` 与 `tests/test_detect.py` 覆盖（全段对账、冻结指纹、参数面逐项"改即变"、双跑逐字节）。其余两行仍是**目标口径**：M3 的 `verify`（Node 复算对账 + 篡改探活）与 M5 的 `check-report`（数字白名单）落地后补上可直接复制的验证命令与实测证据。
+> 表中**数据剖面**一行已由实测覆盖（M1）：同一个 CSV 连续两次 `profile` 输出逐字节一致，且源码直跑与 `pip install -e .` 安装面产出同一份字节。**检测与 Episode**、**run-spec 可复算**两行已由 M2 的 `selftest` 与 `tests/test_detect.py` 覆盖（全段对账、冻结指纹、参数面逐项"改即变"、双跑逐字节）。**浏览器复算结论**一行已由 M3 覆盖：`examples/atlas.html` 里那份手写镜像在 Node 下重算出的规范 JSON 与 sha256 与构建值逐字节相等，篡改一个内联样本必 MISMATCH 且首个差异点落在被篡改的 series（`tests/test_mirror.py` 逐条钉住，含"Node 缺失必须 exit 4"）。剩下**报告中的每个数字**一行仍是目标口径，待 M5 的 `check-report` 落地后补上可直接复制的验证命令与实测证据。
 
-## 使用方式（M1–M2 已落地，其余为计划形态）
+## 使用方式（M1–M3 已落地，其余为计划形态）
 
 ```bash
 # 1. 数据剖面 + 质量卡（M1 已落地，可实跑）
@@ -87,11 +94,11 @@ PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli detect <你的.csv> --out-dir out
 # 3. 基准自检（M2 已落地，可实跑）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli selftest
 
-# 4. 渲染单文件 HTML 档案（断网双击可开）（M4）
-PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli render <你的.csv> -o atlas.html
+# 4. 复算复核（M3 已落地，可实跑；需要 Node；浏览器徽章是人读的那一面）
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli verify examples/atlas.html
 
-# 5. 复算复核（Node 通道；浏览器徽章是人读的那一面）（M3）
-PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli verify atlas.html
+# 5. 渲染单文件标注图（M4；今天 `render` 仍以 exit 3 表示阶段未就绪）
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli render <你的.csv> -o atlas.html
 ```
 
 ## 合成数据与真值（M1 冻结资产）
@@ -110,21 +117,22 @@ PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli verify atlas.html
 py -X utf8 tools/gen_synthetic_series.py --check   # 台账 + 重生成逐字节比对；篡改/缺失 -> exit 2
 ```
 
-退出码契约：**0** 成功；**1** 门禁/自检发现缺陷（`selftest` 失败、数字白名单未命中、复算 MISMATCH）；**2** 用法与输入错误（缺文件、CSV 契约校验失败、未知子命令）；**3** 阶段未就绪（骨架期标记，随模块落地整项退役）；**4** 环境前提不满足（如 `verify` 找不到 Node——**不回退、不静默跳过**）。
+退出码契约：**0** 成功；**1** 门禁/自检发现缺陷（`selftest` 失败、数字白名单未命中、复算 MISMATCH、探针失败）；**2** 用法与输入错误（缺文件、CSV 契约校验失败、未知子命令、产物不合嵌入契约、篡改下标越界）；**3** 阶段未就绪（骨架期标记，随模块落地整项退役；现余 `render`/`check-report`）；**4** 环境前提不满足（如 `verify` 找不到 Node——**不回退、不静默跳过**）。
 
 ## 仓库结构
 
 ```
 SKILL.md                    Agent Skill 主入口（触发条件 / 工作流 / 退出码表 / 模型分工）
 src/anomaly_atlas/          cli（编排+退出码+编码守卫）、timebase/csvio/profile（M1）、
-                            canon/detect/episodes/selftest（M2）、mirror + mirror/zaa_mirror.js（M3）、
+                            canon/detect/episodes/selftest（M2）、
+                            mirror + mirror/zaa_mirror.js + render（M3：嵌入契约与最小载体页）、
                             layout/render（M4）、facts/report（M5）
-tools/                      合成时序与真值生成器（M1）、Node 复算对账（M3）
+tools/                      合成时序与真值生成器（M1）、Node 复算对账 + 载体页构建（M3）
 data/README.md              台账 + 数值口径唯一权威定义处（§4：检测器参数 / 合并排序 / 规范 JSON 与哈希 / 错误码 / 数字白名单）
 data/synthetic/ data/truth/ M1 冻结产物：合成时序 + 植入真值 + 真值 hash（禁手改）
 data/samples/               最小示例 CSV
-examples/                   M4 起：示例 HTML 产物
-tests/                      pytest 套件（含真值对账、双跑一致、零外链、可证伪探针）
+examples/atlas.html         M3 最小载体页（复算徽章；M4 替换为完整标注图）
+tests/                      pytest 套件（含真值对账、双跑一致、零外链、Node 对账与篡改定位、可证伪探针）
 plan/                       题目文档、架构、模块详设、数据计划、里程碑、交付对标、决策记录、HANDOFF
 ```
 
@@ -134,7 +142,7 @@ plan/                       题目文档、架构、模块详设、数据计划�
 - **双解释器**：本仓库在 Python 3.8 与 3.12 双通道下跑全量测试（`py -3.8` / `py -3.12` 可显式指定）。跨版本差异以 CI 四矩阵为准；"本机能跑"不是跨版本证据。
 - **Git Bash 的 `/tmp`**：Windows 原生 Python 看不见 Git Bash 的 `/tmp`，临时文件请用工作区相对路径或系统临时目录。
 - **源码直跑 vs 安装跑**：`PYTHONPATH=src` 是源码直跑口径；`pip install -e .` 后 `anomaly-atlas` 命令等价，且该命令只有 Python 标准库依赖（零第三方运行时依赖）。
-- **`verify` 需要 Node**：本机没有 Node 时该命令以退出码 4 明确失败，不静默跳过；此时仍可直接用浏览器打开 HTML 看徽章（人读通道）。
+- **`verify` / `mirror_parity` 需要 Node**（本机实测 `node v24.15.0`；CI 的 windows/ubuntu runner 都预装）：Node 不在时以退出码 **4** 明确失败，并给出两条补救路径（装 Node，或直接在浏览器打开 HTML 看徽章），**不回退、不静默跳过**。JS 镜像随包分发（`anomaly_atlas/mirror/zaa_mirror.js`，wheel 内含），所以安装面同样能跑复算。
 
 ## 边界与 roadmap（首期不做）
 

@@ -28,7 +28,6 @@ COMMANDS = ("profile", "detect", "render", "verify", "check-report", "selftest")
 
 # command -> milestone that lands it. Empty = nothing left unwired anywhere.
 STAGE_NOT_READY = {
-    "verify": "M3",
     "render": "M4",
     "check-report": "M5",
 }

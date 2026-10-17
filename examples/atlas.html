@@ -19820,7 +19820,7 @@ var ZAA = (function () {
 <script id="zaa-boot" type="text/javascript">(function () {
   /* Recompute through the inlined mirror and show the verdict. Nothing here reaches the network:
      every byte compared is already in this file. */
-  var payload = JSON.parse(document.getElementById("$payload_id").textContent);
+  var payload = JSON.parse(document.getElementById("zaa-payload").textContent);
   var expected = {
     canonical: payload.anomaly_set_canonical,
     sha256: payload.anomaly_set_sha256,

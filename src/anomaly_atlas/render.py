@@ -40,11 +40,18 @@ from . import mirror as mirror_module
 
 CARRIER_TITLE = "anomaly-atlas 复算载体页（M3 最小载体）"
 
-# Kept as a literal so a change to the boot logic is a visible diff rather than a generated blob.
-_BOOT_JS = """(function () {
+# The boot block's element id. Single definition point next to the block it names.
+SCRIPT_ID_BOOT = "zaa-boot"
+
+# The boot script, with the payload block's id resolved *here* rather than left as an outer
+# `string.Template` slot: a substituted value is not re-scanned for `$`, so a `$payload_id` written
+# inside this literal would reach the artifact verbatim and the page would look up a null element.
+# (That is not hypothetical -- it is how this shipped the first time, and only the browser channel
+# could see it: the Node harness drives the mirror directly and never runs the boot script.)
+_BOOT_JS_TEMPLATE = """(function () {
   /* Recompute through the inlined mirror and show the verdict. Nothing here reaches the network:
      every byte compared is already in this file. */
-  var payload = JSON.parse(document.getElementById("$payload_id").textContent);
+  var payload = JSON.parse(document.getElementById("%s").textContent);
   var expected = {
     canonical: payload.anomaly_set_canonical,
     sha256: payload.anomaly_set_sha256,
@@ -73,6 +80,8 @@ _BOOT_JS = """(function () {
   document.getElementById("first-diff").textContent = text;
 })();
 """
+
+_BOOT_JS = _BOOT_JS_TEMPLATE % mirror_module.SCRIPT_ID_PAYLOAD
 
 _CARRIER_TEMPLATE = Template(
     """<!DOCTYPE html>
@@ -195,7 +204,7 @@ def build_carrier_html(parsed, run_document, anomaly_set, detections=None):
         title=CARRIER_TITLE,
         payload_id=mirror_module.SCRIPT_ID_PAYLOAD,
         mirror_id=mirror_module.SCRIPT_ID_MIRROR,
-        boot_id="zaa-boot",
+        boot_id=SCRIPT_ID_BOOT,
         payload_json=canon.canonical_json_text(payload),
         mirror_source=mirror_module.load_mirror_js(),
         boot_js=_BOOT_JS,

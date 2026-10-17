@@ -63,7 +63,7 @@ class TestCarrierShape:
         assert carrier.endswith("</html>\n")
 
     def test_the_contract_blocks_are_all_present(self, carrier):
-        for script_id in (mirror.SCRIPT_ID_PAYLOAD, mirror.SCRIPT_ID_MIRROR, "zaa-boot"):
+        for script_id in (mirror.SCRIPT_ID_PAYLOAD, mirror.SCRIPT_ID_MIRROR, render.SCRIPT_ID_BOOT):
             assert 'id="%s"' % script_id in carrier
 
     def test_the_page_states_what_it_is(self, carrier):
@@ -76,6 +76,19 @@ class TestCarrierShape:
         assert payload["anomaly_set_sha256"] == FROZEN_DIGEST
         assert payload["run"]["params"]["period_points"] == 288
         assert ZAA_RECOMPUTE in carrier  # the boot script really drives the mirror
+
+    def test_no_template_placeholder_survives_into_the_artifact(self, carrier):
+        # `string.Template` leaves an unsubstituted placeholder verbatim, and a substituted value is
+        # not re-scanned -- so a `$payload_id` written inside the boot script reaches the page as
+        # text and the page looks up a null element. The Node channel cannot see that: it drives the
+        # mirror directly and never runs the boot script (this is how the first version shipped, and
+        # only the browser caught it). The absence of any `$` is therefore a gate, not cosmetics.
+        assert "$" not in carrier
+
+    def test_the_boot_block_looks_up_the_payload_block_by_its_contract_id(self, carrier):
+        boot = _block(carrier, render.SCRIPT_ID_BOOT)
+        assert 'getElementById("%s")' % mirror.SCRIPT_ID_PAYLOAD in boot
+        assert 'getElementById("verdict-label")' in boot
 
 
 class TestZeroExternalResources:

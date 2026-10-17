@@ -12,7 +12,7 @@ anomaly-atlas 的回答是：**异常集由 run-spec 唯一决定，并由读者
 
 ## 当前状态（诚实口径）
 
-本项目按里程碑推进，**当前已完成 M1 数据先行**（整数时间轴 + CSV 契约 + 数据剖面 + 合成时序与真值冻结），下一步是 M2 检测内核。今天真正可用的东西：
+本项目按里程碑推进，**当前已完成 M2 检测内核**（4 类检测器 + Episode 合并与严重度排序 + 规范指纹 + 基准自检套件），下一步是 M3 浏览器复算。今天真正可用的东西：
 
 ```bash
 # 源码直跑（Python >= 3.8，零第三方依赖；Windows 用 py 而非 python）
@@ -23,6 +23,13 @@ PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli --version
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli profile data/samples/minimal.csv -o profile.json
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli profile data/synthetic/series.csv -o profile.json
 
+# 检测：CSV -> run.json（生效参数）/ anomalies.json（Episode + 指纹输入）/ anomaly_set.sha256
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli detect data/synthetic/series.csv --out-dir out
+cat out/anomaly_set.sha256
+
+# 基准自检：冻结台账 + 真值全段对账 + 冻结指纹 + 改参数必改哈希 + 双跑一致（各带可证伪探针）
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli selftest
+
 # 冻结产物自检：manifest 台账 + 重生成逐字节比对（篡改/缺失 -> exit 2）
 py -X utf8 tools/gen_synthetic_series.py --check
 
@@ -32,13 +39,17 @@ anomaly-atlas --help
 
 `profile` 已按契约落地：坏输入（空文件、缺列 / 列名歧义、时间戳不可解析、数值不可解析、重复时间戳超阈值、时间戳乱序）**一次收集全部错误、每条带源行号或列名、退出码 2**；缺失值记为 `None`，不补 0、不插值。
 
-已注册但**尚未落地**的子命令（`detect` / `selftest` / `verify` / `render` / `check-report`）当前一律以退出码 **3**（阶段未就绪）返回，**不产出任何假结果**——模块在每个里程碑落地时，同一提交内退役它的就绪标记并补一条离线冒烟。
+`detect` 已按契约落地：四类检测器（滚动中位数+MAD、滚动 IQR、自实现 STL 残差、规则型）→ 按**时间域** `max_gap_ms` 合并 → 定点整数严重度排序 → `episode_id`；`run.json` 记录**解析后的生效参数**（含 ACF 估出的 `period_points`、`quant_decimals`、算法与规范版本号），`anomalies.json` 只含整数与字符串，指纹由 `canon.canonical_digest` 单点产出。同一 CSV 两跑逐字节一致；坏 CSV / 坏 spec → 退出码 2 且**零副作用**。
+
+`selftest` 已按契约落地：五项检查（冻结台账 / 真值全段对账 39/39 + 6 条合并探针 / 冻结指纹 / 改参数必改哈希 / 剖面双跑）各带**可证伪探针**，探针不变红即计为失败（exit 1）；找不到冻结数据 → exit 4（不静默通过）。
+
+已注册但**尚未落地**的子命令（`verify` / `render` / `check-report`）当前一律以退出码 **3**（阶段未就绪）返回，**不产出任何假结果**——模块在每个里程碑落地时，同一提交内退役它的就绪标记并补一条离线冒烟。
 
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |
 | M0 骨架 | plan/02–06 + 包结构 + CLI 退出码契约 + CI 预置 | ✅ 2026-10-17（双解释器 3.8/3.12 各 31 项测试全绿 + 干净 venv 31 项全绿；退出码冒烟 14 条逐条核对；变异验证 4/4 变红；未接远端，CI 待首推验证） |
 | M1 数据先行 | CSV 契约、整数时间轴、数据剖面、合成时序与真值冻结 | ✅ 2026-10-17（`profile` 落地并退役退出码 3；211 项测试在 3.8 / 3.12 / 干净 venv 三处全绿；全量 fixture 行被 `datetime` 交叉证伪；真值哈希与冻结产物台账固化；变异验证 10/10 变红；未接远端，CI 待首推验证） |
-| M2 检测内核 | 4 类检测器、Episode 合并与严重度排序、规范 JSON 与 sha256 | 未开始 |
+| M2 检测内核 | 4 类检测器、Episode 合并与严重度排序、规范 JSON 与 sha256 | ✅ 2026-10-17（`detect`/`selftest` 落地并退役退出码 3；411 项测试在 3.8 / 3.12 / 干净 venv 三处全绿，安装面产物与源码直跑逐字节相同；真值全段对账 39/39 + 6/6 合并探针；周期估计 288 与植入一致；冻结指纹 `6020a3d3…`；参数面 20 项"改即变"；无超越函数门实测抓出并修掉 `10 ** d`；变异验证 16/16 变红；未接远端，CI 待首推验证） |
 | M3 浏览器复算（硬门禁） | 手写 JS 镜像 + 内联数据 + VERIFIED/MISMATCH + 首个差异点 | 未开始 |
 | M4 渲染 | 单文件标注图（零外链、可打印、灵敏度滑杆） | 未开始 |
 | M5 报告门禁 | Episode 命名/原因 + 数字白名单 + SKILL.md/README 定稿 | 未开始 |
@@ -62,21 +73,24 @@ anomaly-atlas --help
 
 哈希可复算的两个前提条件（工程上必须成立，否则复算会随机 MISMATCH）：**规范 JSON 只含整数与字符串**（浮点在哈希边界做整数定点化，禁止浮点格式化参与哈希），以及**检测路径禁用一切超越函数与库归约函数**（只用 IEEE-754 基本运算，幂次展开为乘法）。理由与纪律见 [`plan/02-架构与技术选型.md`](plan/02-架构与技术选型.md) §3 与 `data/README.md` §4.3。
 
-> 表中**数据剖面**一行已由实测覆盖（M1）：同一个 CSV 连续两次 `profile` 输出逐字节一致，且源码直跑与 `pip install -e .` 安装面产出同一份字节。其余四行仍是**目标口径**：M2 的 `selftest`（fixture 哈希、真值逐段对账、改参数必改哈希）与 M3 的 `verify`（Node 复算对账 + 篡改探活）落地后补上可直接复制的验证命令与实测证据。
+> 表中**数据剖面**一行已由实测覆盖（M1）：同一个 CSV 连续两次 `profile` 输出逐字节一致，且源码直跑与 `pip install -e .` 安装面产出同一份字节。**检测与 Episode**、**run-spec 可复算**两行已由 M2 的 `selftest` 与 `tests/test_detect.py` 覆盖（全段对账、冻结指纹、参数面逐项"改即变"、双跑逐字节）。其余两行仍是**目标口径**：M3 的 `verify`（Node 复算对账 + 篡改探活）与 M5 的 `check-report`（数字白名单）落地后补上可直接复制的验证命令与实测证据。
 
-## 使用方式（M1 已落地第一步，其余为计划形态）
+## 使用方式（M1–M2 已落地，其余为计划形态）
 
 ```bash
 # 1. 数据剖面 + 质量卡（M1 已落地，可实跑）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli profile <你的.csv> -o profile.json
 
-# 2. 检测 → run.json / anomalies.json / facts.json / 异常集 sha256（M2）
+# 2. 检测 → run.json / anomalies.json / anomaly_set.sha256（M2 已落地，可实跑）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli detect <你的.csv> --out-dir out
 
-# 3. 渲染单文件 HTML 档案（断网双击可开）（M4）
+# 3. 基准自检（M2 已落地，可实跑）
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli selftest
+
+# 4. 渲染单文件 HTML 档案（断网双击可开）（M4）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli render <你的.csv> -o atlas.html
 
-# 4. 复算复核（Node 通道；浏览器徽章是人读的那一面）（M3）
+# 5. 复算复核（Node 通道；浏览器徽章是人读的那一面）（M3）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli verify atlas.html
 ```
 
@@ -103,8 +117,8 @@ py -X utf8 tools/gen_synthetic_series.py --check   # 台账 + 重生成逐字节
 ```
 SKILL.md                    Agent Skill 主入口（触发条件 / 工作流 / 退出码表 / 模型分工）
 src/anomaly_atlas/          cli（编排+退出码+编码守卫）、timebase/csvio/profile（M1）、
-                            canon/detect/episodes（M2）、mirror + mirror/zaa_mirror.js（M3）、
-                            layout/render（M4）、facts/report（M5）、selftest（基准套件）
+                            canon/detect/episodes/selftest（M2）、mirror + mirror/zaa_mirror.js（M3）、
+                            layout/render（M4）、facts/report（M5）
 tools/                      合成时序与真值生成器（M1）、Node 复算对账（M3）
 data/README.md              台账 + 数值口径唯一权威定义处（§4：检测器参数 / 合并排序 / 规范 JSON 与哈希 / 错误码 / 数字白名单）
 data/synthetic/ data/truth/ M1 冻结产物：合成时序 + 植入真值 + 真值 hash（禁手改）

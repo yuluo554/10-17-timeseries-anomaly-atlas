@@ -719,7 +719,7 @@
       "n_dropped_points": 13,
       "n_grid_points": 1000,
       "n_rows": 987,
-      "noise_amplitude_milli": 600,
+      "noise_amplitude_milli": 200,
       "series_id": "humidity"
     },
     {

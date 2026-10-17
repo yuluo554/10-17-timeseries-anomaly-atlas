@@ -2,12 +2,12 @@
   "artifacts": [
     {
       "path": "data/synthetic/series.csv",
-      "sha256": "1fcbf4cf27bec18af273b1d42f81189266940fd6a47826dfc33fa825e95eb2a6",
+      "sha256": "4e644ff21920b8e03ea91f18970ae8e327c0663c0ee7b2c210cd36c7f5f4b612",
       "size_bytes": 127131
     },
     {
       "path": "data/truth/truth.json",
-      "sha256": "60c5aeedac294fae389462d536a427c8df8a771fae58f49a42f548409004e19c",
+      "sha256": "0ef1169b2af24a84c90d06dabf6482eadf655e406f054522521a6e9024cd9965",
       "size_bytes": 18723
     },
     {
@@ -93,7 +93,7 @@
           120,
           132
         ],
-        "noise_amplitude_milli": 600,
+        "noise_amplitude_milli": 200,
         "series_id": "humidity"
       },
       {

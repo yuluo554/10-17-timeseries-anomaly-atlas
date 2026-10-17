@@ -46,5 +46,17 @@ jobs:
           python -c "import pathlib,sys;sys.exit(0 if pathlib.Path('profile-smoke-a.json').read_bytes()==pathlib.Path('profile-smoke-b.json').read_bytes() else 1)"
       - name: CLI smoke (profile via the bare console script)
         run: anomaly-atlas profile data/samples/minimal.csv -o profile-smoke-minimal.json
+      - name: CLI smoke (detect, offline, two runs byte-identical)
+        run: |
+          python -m anomaly_atlas.cli detect data/synthetic/series.csv --out-dir out/smoke-a
+          python -m anomaly_atlas.cli detect data/synthetic/series.csv --out-dir out/smoke-b
+          python -c "import pathlib,sys;sys.exit(0 if pathlib.Path('out/smoke-a/run.json').read_bytes()==pathlib.Path('out/smoke-b/run.json').read_bytes() and pathlib.Path('out/smoke-a/anomalies.json').read_bytes()==pathlib.Path('out/smoke-b/anomalies.json').read_bytes() else 1)"
+      - name: CLI smoke (detect digest file matches the archive it names)
+        run: |
+          python -c "import hashlib,pathlib,sys;p=pathlib.Path('out/smoke-a/anomalies.json');d=hashlib.sha256(p.read_bytes()).hexdigest();r=pathlib.Path('out/smoke-a/anomaly_set.sha256').read_text().strip();print('anomaly-set sha256',d);sys.exit(0 if d==r else 1)"
+      - name: CLI smoke (detect via the bare console script)
+        run: anomaly-atlas detect data/samples/minimal.csv --out-dir out/smoke-minimal
+      - name: CLI smoke (selftest: ledger + truth reconciliation + digest tripwire + probes)
+        run: python -m anomaly_atlas.cli selftest
       - name: Generator smoke (frozen artifacts + bit-for-bit regeneration)
         run: python tools/gen_synthetic_series.py --check

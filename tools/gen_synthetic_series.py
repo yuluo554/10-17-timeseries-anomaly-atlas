@@ -15,7 +15,10 @@ Generator discipline (K11):
     frozen artifact is exit 2;
   * truth holds inputs and expectations only -- never an `observed` field, and no
     always-dumb status key;
-  * the generator asserts its own truth is non-trivial before writing anything.
+  * the generator asserts its own truth is non-trivial *and* detectable before writing
+    anything (segment counts, window-boundary coverage, probe straddling, and -- added when
+    M2 measured that humidity's planted spikes sat under its own noise floor -- a magnitude
+    floor against each series' noise amplitude plus a daily-cycle floor).
 
 Usage:
   python tools/gen_synthetic_series.py [--seed N] [--out-root DIR]
@@ -74,7 +77,13 @@ SERIES = (
     {
         "series_id": "humidity",
         "base_milli": 85000,
-        "noise_amplitude_milli": 600,
+        # 200 (not 600): a noise floor has to sit below both the daily cycle and the planted
+        # anomalies or the benchmark claims truth the data cannot carry. At 600 the planted
+        # humidity spikes (1800-2200 milli) were *under* the noise amplitude, so no detector at
+        # the pinned k=3.5 could recover them (measured: max z = 2.77 at row 1694), and the
+        # daily cycle (910 milli peak-to-peak) was only 1.5x the noise, which no period
+        # estimator can find. assert_detectable() now enforces both floors.
+        "noise_amplitude_milli": 200,
         "drift_milli_total": 2500,
         "daily_profile_milli": [
             420, 400, 360, 300, 200, 80, -60, -200, -320, -400, -440, -420,
@@ -508,12 +517,55 @@ def _count_by_type(segments):
     return counts
 
 
+# Detectability floors. Planted truth is only meaningful if the data can carry it: an additive
+# magnitude under the noise amplitude yields a robust z under any usable threshold, and a daily
+# cycle comparable to the noise cannot be located by a period estimator. The M1 fixture violated
+# both for humidity (noise 600 milli: spikes 1800-2200 milli under the noise amplitude, cycle 910
+# milli only 1.5x it), which is why these floors exist -- a count-only non-triviality check
+# happily describes a benchmark whose own anomalies are unrecoverable.
+MIN_MAGNITUDE_OVER_NOISE = 8
+MIN_DAILY_OVER_NOISE = 3
+
+
+def assert_detectable(truth):
+    """Every additive segment must stand out of its noise, and so must the planted daily cycle."""
+    noise = {spec["series_id"]: spec["noise_amplitude_milli"] for spec in SERIES}
+    for spec in SERIES:
+        profile = spec["daily_profile_milli"]
+        floor = MIN_DAILY_OVER_NOISE * spec["noise_amplitude_milli"]
+        swing = max(profile) - min(profile)
+        if swing < floor:
+            raise AssertionError(
+                "series %r: daily cycle swing %d milli is under %d x its noise amplitude (%d)"
+                % (spec["series_id"], swing, MIN_DAILY_OVER_NOISE, spec["noise_amplitude_milli"])
+            )
+    for segment in truth["segments"]:
+        if segment["type"] not in ("spike", "level_shift"):
+            continue
+        amplitude = abs(segment["magnitude_milli"])
+        spec_noise = noise[segment["series_id"]]
+        floor = MIN_MAGNITUDE_OVER_NOISE * spec_noise
+        if amplitude < floor:
+            raise AssertionError(
+                "segment %s (%s): magnitude %d milli is under %d x the noise amplitude of %r (%d)"
+                % (
+                    segment["segment_id"],
+                    segment["type"],
+                    segment["magnitude_milli"],
+                    MIN_MAGNITUDE_OVER_NOISE,
+                    segment["series_id"],
+                    spec_noise,
+                )
+            )
+
+
 def build_artifacts(seed):
     """Return {relative path: bytes} for every frozen artifact."""
     rows_by_series, dropped_by_series, segments_by_series = build_series_rows(seed)
     csv_text, row_no_by_key = assemble(rows_by_series)
     truth = build_truth(rows_by_series, dropped_by_series, segments_by_series, row_no_by_key, seed)
     assert_non_trivial(truth)
+    assert_detectable(truth)
 
     csv_bytes = csv_text.encode("utf-8")
     truth_bytes = canon.canonical_json_bytes(truth)

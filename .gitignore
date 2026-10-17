@@ -75,3 +75,9 @@ npm-debug.log*
 *.bak
 .tmp/
 out/
+
+# Local/CI CLI smoke outputs (regenerable, never committed)
+profile.json
+profile-smoke-a.json
+profile-smoke-b.json
+profile-smoke-minimal.json

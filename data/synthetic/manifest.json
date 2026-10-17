@@ -1,0 +1,159 @@
+{
+  "artifacts": [
+    {
+      "path": "data/synthetic/series.csv",
+      "sha256": "1fcbf4cf27bec18af273b1d42f81189266940fd6a47826dfc33fa825e95eb2a6",
+      "size_bytes": 127131
+    },
+    {
+      "path": "data/truth/truth.json",
+      "sha256": "60c5aeedac294fae389462d536a427c8df8a771fae58f49a42f548409004e19c",
+      "size_bytes": 18723
+    },
+    {
+      "path": "data/truth/hash.txt",
+      "sha256": "50c4de142294d5af97acab7b5b7d34ec8e4955886259128a248ac19892a46e51",
+      "size_bytes": 65
+    }
+  ],
+  "generator": "tools/gen_synthetic_series.py",
+  "generator_version": "1",
+  "params": {
+    "cadence_ms": 300000,
+    "max_gap_ms": 1800000,
+    "n_grid_points": 1000,
+    "period_minutes": 1440,
+    "series": [
+      {
+        "base_milli": -18000,
+        "daily_profile_milli": [
+          -350,
+          -320,
+          -280,
+          -220,
+          -120,
+          0,
+          140,
+          300,
+          440,
+          520,
+          560,
+          520,
+          420,
+          280,
+          120,
+          -40,
+          -180,
+          -300,
+          -400,
+          -460,
+          -480,
+          -460,
+          -420,
+          -380
+        ],
+        "drift_milli_total": -1800,
+        "dropped_points": [
+          240,
+          252
+        ],
+        "noise_amplitude_milli": 100,
+        "series_id": "temperature"
+      },
+      {
+        "base_milli": 85000,
+        "daily_profile_milli": [
+          420,
+          400,
+          360,
+          300,
+          200,
+          80,
+          -60,
+          -200,
+          -320,
+          -400,
+          -440,
+          -420,
+          -340,
+          -220,
+          -80,
+          60,
+          200,
+          320,
+          400,
+          440,
+          460,
+          470,
+          460,
+          440
+        ],
+        "drift_milli_total": 2500,
+        "dropped_points": [
+          120,
+          132
+        ],
+        "noise_amplitude_milli": 600,
+        "series_id": "humidity"
+      },
+      {
+        "base_milli": 4200,
+        "daily_profile_milli": [
+          -900,
+          -920,
+          -940,
+          -900,
+          -800,
+          -600,
+          -300,
+          100,
+          500,
+          800,
+          950,
+          900,
+          700,
+          400,
+          100,
+          -100,
+          -300,
+          -500,
+          -650,
+          -750,
+          -800,
+          -850,
+          -880,
+          -900
+        ],
+        "drift_milli_total": 800,
+        "dropped_points": [
+          330,
+          344
+        ],
+        "noise_amplitude_milli": 120,
+        "series_id": "energy_kwh"
+      }
+    ],
+    "start_epoch_ms": 1709164800000,
+    "start_iso": "2024-02-29T00:00:00.000Z",
+    "value_decimals": 2,
+    "variance_mult_milli": 4500,
+    "window_points": 24
+  },
+  "planted": {
+    "n_duplicate_timestamps": 1,
+    "n_gaps": 3,
+    "n_merge_probes": 6,
+    "n_missing_runs": 3,
+    "n_zero_runs": 3,
+    "segment_counts": {
+      "level_shift": 5,
+      "missing_run": 3,
+      "spike": 22,
+      "variance_shift": 6,
+      "zero_run": 3
+    }
+  },
+  "scenario": "冷链仓储温控与能耗监测（虚构）",
+  "seed": 20240229,
+  "truth_sha256": "ad3822a14c95dd3478eeea1c58090bc1cd1afd0eea3f82aed91588a9f0b75d5c"
+}

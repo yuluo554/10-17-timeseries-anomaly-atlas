@@ -39,3 +39,12 @@ jobs:
       # Each newly delivered command adds a smoke step here in the same commit that
       # delivers it, and retires any stale exit-code assertion it replaces (an assertion
       # written for a placeholder becomes a lie the moment the module lands).
+      - name: CLI smoke (profile, offline, two runs byte-identical)
+        run: |
+          python -m anomaly_atlas.cli profile data/synthetic/series.csv -o profile-smoke-a.json
+          python -m anomaly_atlas.cli profile data/synthetic/series.csv -o profile-smoke-b.json
+          python -c "import pathlib,sys;sys.exit(0 if pathlib.Path('profile-smoke-a.json').read_bytes()==pathlib.Path('profile-smoke-b.json').read_bytes() else 1)"
+      - name: CLI smoke (profile via the bare console script)
+        run: anomaly-atlas profile data/samples/minimal.csv -o profile-smoke-minimal.json
+      - name: Generator smoke (frozen artifacts + bit-for-bit regeneration)
+        run: python tools/gen_synthetic_series.py --check

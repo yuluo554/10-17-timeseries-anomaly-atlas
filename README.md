@@ -12,23 +12,32 @@ anomaly-atlas 的回答是：**异常集由 run-spec 唯一决定，并由读者
 
 ## 当前状态（诚实口径）
 
-本项目按里程碑推进，**当前已完成 M0 骨架**（计划文档 + 目录结构 + CLI 退出码契约 + CI 预置），下一步是 M1 数据先行。今天可用的东西只有：
+本项目按里程碑推进，**当前已完成 M1 数据先行**（整数时间轴 + CSV 契约 + 数据剖面 + 合成时序与真值冻结），下一步是 M2 检测内核。今天真正可用的东西：
 
 ```bash
 # 源码直跑（Python >= 3.8，零第三方依赖；Windows 用 py 而非 python）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli --help
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli --version
 
+# 数据剖面：CSV -> profile.json（规范 JSON，同输入两跑逐字节一致）
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli profile data/samples/minimal.csv -o profile.json
+PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli profile data/synthetic/series.csv -o profile.json
+
+# 冻结产物自检：manifest 台账 + 重生成逐字节比对（篡改/缺失 -> exit 2）
+py -X utf8 tools/gen_synthetic_series.py --check
+
 # 或先 pip install -e .，之后省掉 PYTHONPATH 与 -m 前缀
 anomaly-atlas --help
 ```
 
-已注册但**尚未落地**的子命令（`profile` / `detect` / `selftest` / `verify` / `render` / `check-report`）当前一律以退出码 **3**（阶段未就绪）返回，**不产出任何假结果**——模块在每个里程碑落地时，同一提交内退役它的就绪标记并补一条离线冒烟。
+`profile` 已按契约落地：坏输入（空文件、缺列 / 列名歧义、时间戳不可解析、数值不可解析、重复时间戳超阈值、时间戳乱序）**一次收集全部错误、每条带源行号或列名、退出码 2**；缺失值记为 `None`，不补 0、不插值。
+
+已注册但**尚未落地**的子命令（`detect` / `selftest` / `verify` / `render` / `check-report`）当前一律以退出码 **3**（阶段未就绪）返回，**不产出任何假结果**——模块在每个里程碑落地时，同一提交内退役它的就绪标记并补一条离线冒烟。
 
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |
 | M0 骨架 | plan/02–06 + 包结构 + CLI 退出码契约 + CI 预置 | ✅ 2026-10-17（双解释器 3.8/3.12 各 31 项测试全绿 + 干净 venv 31 项全绿；退出码冒烟 14 条逐条核对；变异验证 4/4 变红；未接远端，CI 待首推验证） |
-| M1 数据先行 | CSV 契约、整数时间轴、数据剖面、合成时序与真值冻结 | 未开始 |
+| M1 数据先行 | CSV 契约、整数时间轴、数据剖面、合成时序与真值冻结 | ✅ 2026-10-17（`profile` 落地并退役退出码 3；211 项测试在 3.8 / 3.12 / 干净 venv 三处全绿；全量 fixture 行被 `datetime` 交叉证伪；真值哈希与冻结产物台账固化；变异验证 10/10 变红；未接远端，CI 待首推验证） |
 | M2 检测内核 | 4 类检测器、Episode 合并与严重度排序、规范 JSON 与 sha256 | 未开始 |
 | M3 浏览器复算（硬门禁） | 手写 JS 镜像 + 内联数据 + VERIFIED/MISMATCH + 首个差异点 | 未开始 |
 | M4 渲染 | 单文件标注图（零外链、可打印、灵敏度滑杆） | 未开始 |
@@ -53,22 +62,38 @@ anomaly-atlas --help
 
 哈希可复算的两个前提条件（工程上必须成立，否则复算会随机 MISMATCH）：**规范 JSON 只含整数与字符串**（浮点在哈希边界做整数定点化，禁止浮点格式化参与哈希），以及**检测路径禁用一切超越函数与库归约函数**（只用 IEEE-754 基本运算，幂次展开为乘法）。理由与纪律见 [`plan/02-架构与技术选型.md`](plan/02-架构与技术选型.md) §3 与 `data/README.md` §4.3。
 
-> 上面这张表是**目标口径**，尚未由实测覆盖：M2 的 `selftest`（fixture 哈希、真值逐段对账、改参数必改哈希）与 M3 的 `verify`（Node 复算对账 + 篡改探活）落地后，README 会补上可直接复制的验证命令与实测证据。
+> 表中**数据剖面**一行已由实测覆盖（M1）：同一个 CSV 连续两次 `profile` 输出逐字节一致，且源码直跑与 `pip install -e .` 安装面产出同一份字节。其余四行仍是**目标口径**：M2 的 `selftest`（fixture 哈希、真值逐段对账、改参数必改哈希）与 M3 的 `verify`（Node 复算对账 + 篡改探活）落地后补上可直接复制的验证命令与实测证据。
 
-## 使用方式（计划形态，M1–M5 落地后回填实测）
+## 使用方式（M1 已落地第一步，其余为计划形态）
 
 ```bash
-# 1. 数据剖面 + 质量卡
+# 1. 数据剖面 + 质量卡（M1 已落地，可实跑）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli profile <你的.csv> -o profile.json
 
-# 2. 检测 → run.json / anomalies.json / facts.json / 异常集 sha256
+# 2. 检测 → run.json / anomalies.json / facts.json / 异常集 sha256（M2）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli detect <你的.csv> --out-dir out
 
-# 3. 渲染单文件 HTML 档案（断网双击可开）
+# 3. 渲染单文件 HTML 档案（断网双击可开）（M4）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli render <你的.csv> -o atlas.html
 
-# 4. 复算复核（Node 通道；浏览器徽章是人读的那一面）
+# 4. 复算复核（Node 通道；浏览器徽章是人读的那一面）（M3）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli verify atlas.html
+```
+
+## 合成数据与真值（M1 冻结资产）
+
+| 资产 | 内容 |
+| --- | --- |
+| [`data/synthetic/series.csv`](data/synthetic/series.csv) | 长表 `timestamp,series_id,value`，2960 行 = 3 个虚构指标（`temperature` / `humidity` / `energy_kwh`）× 5 分钟网格，含 3 处缺口、3 段缺失、3 段零值、1 个重复时间戳 |
+| [`data/synthetic/manifest.json`](data/synthetic/manifest.json) | 生成参数（seed / 网格 / 周期 / 逐指标幅度）+ 逐文件 sha256 台账（生成器实算） |
+| [`data/truth/truth.json`](data/truth/truth.json) | 39 段植入真值（每类 ≥2 段、含窗口边界段与 `max_gap_ms` 两侧的合并探针）；**只存输入与期望，无 `observed`** |
+| [`data/truth/hash.txt`](data/truth/hash.txt) | 真值异常集按 §4.3 规范 JSON 计算的 sha256 |
+| [`data/samples/minimal.csv`](data/samples/minimal.csv) | 17 行手写最小示例（1 处缺口 + 1 个缺失值 + 2 点零值段），可人眼核对 |
+
+冻结纪律与重生成守门：
+
+```bash
+py -X utf8 tools/gen_synthetic_series.py --check   # 台账 + 重生成逐字节比对；篡改/缺失 -> exit 2
 ```
 
 退出码契约：**0** 成功；**1** 门禁/自检发现缺陷（`selftest` 失败、数字白名单未命中、复算 MISMATCH）；**2** 用法与输入错误（缺文件、CSV 契约校验失败、未知子命令）；**3** 阶段未就绪（骨架期标记，随模块落地整项退役）；**4** 环境前提不满足（如 `verify` 找不到 Node——**不回退、不静默跳过**）。

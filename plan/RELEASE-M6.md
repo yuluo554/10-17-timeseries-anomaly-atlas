@@ -10,6 +10,7 @@
 | tag | `v0.1.0`（annotated tag 对象 `5ad560a507b91b839a919ab2439ea02fd665208b`，指向 commit `da2a9c20a00f14b56a0ffd0ed2f4b76907a12952`） |
 | Release | <https://github.com/yuluo554/10-17-timeseries-anomaly-atlas/releases/tag/v0.1.0>（id `RE_kwDOVN772M4YzmpL`，2026-10-18T01:49:18Z，非 draft / 非 prerelease） |
 | 版本一致性 | `pyproject.toml: version = "0.1.0"` == `anomaly_atlas.VERSION = "0.1.0"` == tag `v0.1.0`（`tests/test_skeleton.py::TestVersionConsistency` 常驻钉住） |
+| tag 覆盖范围（口径） | tag 指向 `da2a9c2`（发布代码 + CI 修复）。其后的提交只改 `plan/` 与 `README.md`（留档与状态回写），**不改 `src/`、`data/`、`examples/`、`tests/`**——所以 tag 快照的代码与冻结资产与 `main` 尖端逐字节相同，只是少了文档。若要让 tag 也覆盖留档，需重新打 tag 并重发 Release，本轮刻意不做（发布件一旦发出就不再移动）。 |
 
 ### Release 附件（GitHub 侧 digest 与本地 sha256 双向对账）
 

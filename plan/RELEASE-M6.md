@@ -42,12 +42,13 @@
 | 7 | push | `refs/heads/main`（对账收录口径） | `99d0d0c` | 39089997417 | `99d0d0c` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
 | 8 | push | `refs/heads/main`（HANDOFF 末次核对） | `9aa1fef` | 39090510615 | `9aa1fef` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
 | 9 | push | `refs/heads/main`（tag 覆盖范围口径） | `e418494` | 39090721055 | `e418494` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
+| 10 | push | `refs/heads/main`（对账表补至 9 条） | `189f716` | 39091350257 | `189f716` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
 
-- 事件数 = 9，run 数 = 9，**无遗漏、无重复 run**；每个 run 的 `head_sha` 都等于对应事件的 sha。
-- **截止点与元事件**：本表记录到 `e418494`。承载这张表的提交本身也会产生一次 push 事件——如果把它也写进表，就又要再提交一次，永远差一条。因此本表的**收录口径**是"截至记录点的全部 push 事件；承载表格的那一次单独核对、不写进表"。自第 5 行起全是**只改文档**的提交（`plan/`、`README.md`），它们的 run 全绿即证明文档改动没有碰到任何门禁。表内没有任何一条 run 被合并、跳过或推测；第 1 行的失败也是收录对象。
+- **快照口径**：上表是截至快照提交 `189f716` 的**完整事件列表（共 10 条）**，与 `gh api .../actions/runs` 的 `total_count` 逐条对应，无遗漏、无合并、无推测；每个 run 的 `head_sha` 都等于对应事件的 sha。
+- **为什么不再往下追加**：本文件自身的任何一次提交也会产生一个 push 事件；把它写进表又要再提交一次，永远差一条。因此本表是**快照**，不是实时总数。快照之后的提交（只改 `plan/` 或 `README.md`）按同一判据核对——"一事件恰一 run + `head_sha` 相同 + 四矩阵全绿"——核对结果记在 `plan/HANDOFF-RELEASE.md`，不追加入表。
 - 第 1 条是首推，红了——原因不是代码，是工作流 YAML 本身（详见 §3）。这正是 HANDOFF-M6 §1「CI 本轮新增的 5 步 M5 冒烟均未实跑」所留的缺口，首推把它暴露出来了。
 - 第 3/4 条是 tag ref 的**两次真实写入**：本机 `git push` 因连接超时无法完成，改由 API 建 ref；第一次建的是 lightweight ref，随后为满足"annotated tag"口径删掉重建为指向 tag 对象的 ref。两次写入各触发一个 run，都绿——按"每个 ref 写入事件恰一次 run"记账，两条各自成立。
-- 第 5–9 条是 M6 收尾的**纯文档提交**（`5751434` → `e418494`），四矩阵同样全绿，说明文档改动没有碰到任何门禁。
+- 第 5–10 条是 M6 收尾的**纯文档提交**（`5751434` → `189f716`），四矩阵同样全绿，说明文档改动没有碰到任何门禁。
 - 表中 `head_sha` 是 tag 事件解引用后的 commit sha；tag 对象本身是 `5ad560a507b91b839a919ab2439ea02fd665208b`。
 - 各 job 的矩阵腿与耗时（第 2 条）：windows/3.8、ubuntu/3.8、ubuntu/3.12 均约 2 分钟，windows/3.12 约 2 分 45 秒。
 

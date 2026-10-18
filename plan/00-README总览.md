@@ -15,10 +15,11 @@
 | `plan/05-里程碑.md` | 里程碑 DoD 与状态（每周可演示） |
 | `plan/自评表.md` | 题面评分四栏（40/20/20/20）自评，每项挂可执行证据 + 诚实口径清单 |
 | `SKILL.md` | Agent Skill 主入口（触发条件 / 四步工作流 / 模型分工 / 输入 schema / 退出码表 / 复算口径） |
-| `plan/06-交付对标与决策记录.md` | 交付对标、边界承接、决策记录 D6–D23、待定决策表 P1–P6 |
+| `plan/06-交付对标与决策记录.md` | 交付对标、边界承接、决策记录 D6–D24、待定决策表 P1–P6 |
+| `plan/RELEASE-M6.md` | 发布留档：tag / Release URL / 产物 sha256 / CI 对账表 / 已知环境问题 |
 | `plan/HANDOFF-M<n>.md` | 每棒收尾落盘的续接文件（六节齐：进度+证据/待办/既定口径 K/环境坑/DoD/命令速查） |
 
-> 状态：**M5 报告层与数字白名单已完成（2026-10-18）**，M1–M5 全部落地，下一棒 = M6 发布（续接读 `plan/HANDOFF-M6.md`）。六个子命令全部真实可跑：`profile` / `detect`（含 `facts.json` 台账）/ `selftest` / `verify` / `render`（含 `--narrative` 门禁）/ **`check-report`**。**退出码 3（阶段未就绪）已全线退役**：`STAGE_NOT_READY` 为空、`EXIT_NOT_READY` 常量已删除，测试与 CI 都正向断言"没有任何命令答 3"。报告里的每个数字必须命中 `facts.json`（值比较，含千分位/百分号/中文量词/ISO 时间戳归一化），未命中即 exit 1、**逐条列出全部未命中**、报告不生成；叙事不得引入档案外的 episode 或行号。题面与数值口径已冻结；`plan/02–06` + `plan/自评表.md` 已落盘。实测证据见 `plan/05-里程碑.md` 状态列。
+> 状态：**M6 发布已完成（2026-10-18）**，M1–M6 全部落地。公开仓库 <https://github.com/yuluo554/10-17-timeseries-anomaly-atlas>，tag `v0.1.0` + Release 附图（`atlas.html` 与四份基准数据），CI 四矩阵（windows/ubuntu × 3.8/3.12）在 `main` 与 tag 两次 push 上全绿；发布留档见 `plan/RELEASE-M6.md`。六个子命令全部真实可跑：`profile` / `detect`（含 `facts.json` 台账）/ `selftest` / `verify` / `render`（含 `--narrative` 门禁）/ **`check-report`**。**退出码 3（阶段未就绪）已全线退役**：`STAGE_NOT_READY` 为空、`EXIT_NOT_READY` 常量已删除，测试与 CI 都正向断言"没有任何命令答 3"。报告里的每个数字必须命中 `facts.json`（值比较，含千分位/百分号/中文量词/ISO 时间戳归一化），未命中即 exit 1、**逐条列出全部未命中**、报告不生成；叙事不得引入档案外的 episode 或行号。题面与数值口径已冻结；`plan/02–06` + `plan/自评表.md` 已落盘。实测证据见 `plan/05-里程碑.md` 状态列。
 
 ## 决策记录
 
@@ -66,6 +67,6 @@
 | M3 浏览器复算 | JS 镜像 + 内联数据 + 构建时指纹 + VERIFIED/MISMATCH 徽章 + 首个差异点 | 篡改一个内联点必红并定位；正常产物 Node 对账与浏览器徽章均 VERIFIED |
 | M4 渲染 | 单文件标注图：主序列/异常带/峰值/缺口纹理/Episode 卡片/small multiples/密度热条/灵敏度滑杆/打印样式 | 断网可用；无外链；打印可读；同输入几何一致 | ✅ 已实测（M4：`render` 落地并退役退出码 3；540 项测试在 3.8 / 3.12 / 干净 venv 三处全绿；零外链与"无 `$`"两条断言常驻出口；双跑逐字节 + 几何全整数；三类纹理结构性可区分；滑杆走同一内核且基线复算 == 构建指纹（浏览器实测）；变异验证 20/20 变红；退出码冒烟 38 条且失败路径零副作用） |
 | M5 报告门禁 | 模型叙事 + Episode 命名/原因（引用 `episode_id`）+ 数字白名单 | 注入编造数字必被拦截 | ✅ 已实测（M5：`facts.py` + `report.py` 落地并**退役最后一个退出码 3**（常量也删除）；603 项测试在 3.8 / 3.12 / 干净 venv 三处全绿；注入编造数字/Episode/行号各被指名拒绝且**列全**；`render --narrative` 拒绝时零副作用；`selftest` 6 项检查 + 6 条探针；变异验证 27/27 全红（每条指名变红的测试，另抓出 3 条测试侧缺陷）；退出码冒烟 43 条覆盖 0/1/2/4（16×0 / 8×1 / 17×2 / 3×4，**无 3**）且失败路径零副作用；浏览器实测带叙事的产物徽章 VERIFIED + 报告区白名单横幅，无叙事产物显示新引导文案，两页资源请求 0） |
-| M6 发布 | git tag + GitHub Release（附 HTML 产物与基准数据）+ 发布留档三件套；发布 GitHub 公开仓库 | M6 DoD = tag、Release 产物齐全、留档入库，仓库为 public |
+| M6 发布 | git tag + GitHub Release（附 HTML 产物与基准数据）+ 发布留档三件套；发布 GitHub 公开仓库 | M6 DoD = tag、Release 产物齐全、留档入库，仓库为 public | ✅ 已实测（M6：仓库 public + tag `v0.1.0` + Release 五个附件；**CI 事件数 = run 数 = 4**、每个 run 的 `head_sha` 与事件 sha 相同、tag 后的两次 push 四矩阵全绿；首推红过一次——workflow YAML 的 step `name` 含裸冒号导致文件无法解析，已修并复验；**发布物本体已验**：附件真下载后 sha256 与本地逐条相同、`verify` exit 0 / VERIFIED、tag 真 clone 后 `selftest` 6/6 + `verify` + 生成器 `--check` + 全量 603 passed；`git archive` 与真 clone 各 61 文件无 CRLF/BOM、UTF-8 可严格解码；留档 `plan/RELEASE-M6.md`） |
 
 > 状态列在里程碑完成时回填实测证据；未完成的里程碑不预填日期或数字。

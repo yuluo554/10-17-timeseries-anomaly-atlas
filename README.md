@@ -12,7 +12,7 @@ anomaly-atlas 的回答是：**异常集由 run-spec 唯一决定，并由读者
 
 ## 当前状态（诚实口径）
 
-本项目按里程碑推进，**M1–M5 全部落地**：数据剖面 → 检测内核 → 浏览器复算门禁 → 单文件标注图 → **报告层与数字白名单**。六个子命令全部真实可跑，**退出码 3（阶段未就绪）已全线退役**（`STAGE_NOT_READY` 为空、`EXIT_NOT_READY` 常量已删除，测试正向断言"没有任何命令答 3"）。今天真正可用的东西：
+本项目按里程碑推进，**M1–M6 全部落地并已发布**：数据剖面 → 检测内核 → 浏览器复算门禁 → 单文件标注图 → 报告层与数字白名单 → **公开发布（tag `v0.1.0` + Release）**。六个子命令全部真实可跑，**退出码 3（阶段未就绪）已全线退役**（`STAGE_NOT_READY` 为空、`EXIT_NOT_READY` 常量已删除，测试正向断言"没有任何命令答 3"）。公开仓库：<https://github.com/yuluo554/10-17-timeseries-anomaly-atlas>。今天真正可用的东西：
 
 ```bash
 # 源码直跑（Python >= 3.8，零第三方依赖；Windows 用 py 而非 python）
@@ -73,7 +73,7 @@ anomaly-atlas --help
 | M3 浏览器复算（硬门禁） | 手写 JS 镜像 + 内联数据 + VERIFIED/MISMATCH + 首个差异点 | ✅ 2026-10-17（`verify` 落地并退役退出码 3；476 项测试在 3.8 / 3.12 / 干净 venv 三处全绿；产物自带镜像在 Node 下重算与构建指纹逐字节相等；`--tamper-index` 覆盖三个 series 均 MISMATCH 且定位到被篡改的 series；SHA-256 与定点规则两组向量双侧断言；**浏览器打开实测**显示绿色 VERIFIED（另存一份被篡改产物显示红色 MISMATCH 并指名 `energy_kwh / rules.cusum / #0`）——浏览器通道同时抓出一条 Node 通道测不到的缺陷（boot 脚本的模板槽位未替换）；变异验证 15/15 变红；退出码冒烟 29 条含 Node 缺失 exit 4 且零副作用；wheel 内含镜像且安装面重建产物与仓库产物逐字节相同；未接远端，CI 待首推验证） |
 | M4 单文件标注图 | 确定性几何 + 完整标注视图（主序列/异常带/峰值/纹理、Episode 卡片、small multiples、密度热条、灵敏度滑杆、打印样式） | ✅ 2026-10-18（`render` 落地并退役退出码 3，五处同步；540 项测试在 3.8 / 3.12 / 干净 venv 三处全绿（5 skip = 未落地命令的 not-ready 用例按设计退役）；零外链断言常驻出口 + 双跑逐字节 + 同输入几何一致（坐标全为整数）；三种异常区纹理**结构性可区分**（斜纹/竖栅/虚线框）；Episode 卡片的阈值线由该段 `threshold_ref` 派生（规则型如实说明无数值线）；**浏览器通道实测**：徽章绿色 VERIFIED、滑杆基线复算回构建指纹、`k_scale=150/50` 与 `max_gap_ms` 两档各自改变检测点数与 Episode 数且不覆盖构建结论、打印规则（`break-inside: avoid` + 打印隐藏控件）在 CSSOM 中生效、页面加载零资源请求（`performance` 资源条目 0 + 本地服务访问日志只有一次文档 GET）；**滑杆只改显示**由"基线复算 == 构建指纹"现场证明；变异验证 20/20 变红；退出码冒烟 38 条（0/1/2/3/4 全五档）且失败路径零副作用；`verify` / `mirror_parity` 在新产物上 exit 0，篡改逐条 MISMATCH 且定位；**未接远端，CI 待首推验证**） |
 | M5 报告门禁 | `facts.py` + `report.py`（数字白名单）+ `SKILL.md` + README 定稿 + `plan/自评表.md` | ✅ 2026-10-18（`check-report` 落地并**退役最后一个退出码 3**——`STAGE_NOT_READY` 清空、`EXIT_NOT_READY` 常量删除、`test_skeleton.py` 两个类改造为"没有任何命令答 3"的正向断言；`detect` 同步落 `facts.json`；`render --narrative` 构造期门禁；`selftest` 补第 6 项检查 + 探针；CI 同提交补 5 步离线冒烟；**603 项测试在 3.8 / 3.12 / 干净 venv 三处全绿**（0 skip）；`facts.json` 实测 **1861 条事实（1682 数值）/ 178 个 episode id / 84 个分箱**，无浮点无 ISO 串、两次构建逐字节相同；注入编造数字/编造 Episode/档案外行号**各被指名拒绝且逐条列出**，`render` 拒收时**零副作用**（一个字节都不写）；**变异验证 27/27 全红**且每条指名测试（另抓出 3 条测试侧缺陷）；退出码冒烟 43 条（16×0 / 8×1 / 17×2 / 3×4，**无 3**）且失败路径零副作用；浏览器实测：徽章 VERIFIED、报告区白名单横幅 + 叙事原文、两页资源请求 0、访问日志每次导航仅一次文档 GET；见 `plan/05` M5 行） |
-| M6 发布 | tag + GitHub Release + 发布留档 | 未开始 |
+| M6 发布 | tag + GitHub Release + 发布留档 | ✅ 2026-10-18（仓库公开：<https://github.com/yuluo554/10-17-timeseries-anomaly-atlas>；tag `v0.1.0` + Release 五个附件（`atlas.html` + 四份基准数据），GitHub 侧 digest 与本地 sha256 逐条相同；**CI 四矩阵 windows/ubuntu × 3.8/3.12 在 `main` 与 tag 两次 push 上全绿**——首推红过一次，根因是 workflow 里 5 处 step `name` 的裸冒号让 YAML 无法解析（已修并复验）；**发布物本体已验**：附件真下载后 `verify` exit 0 / VERIFIED，tag 真 clone 后 `selftest` 6/6、`verify`、生成器 `--check` 与全量 603 passed；对账表与已知环境问题见 [`plan/RELEASE-M6.md`](plan/RELEASE-M6.md)） |
 
 逐棒的 DoD 与实测证据见 [`plan/05-里程碑.md`](plan/05-里程碑.md)；模块级设计见 [`plan/03-模块详设.md`](plan/03-模块详设.md)；数值口径的唯一权威定义在 [`data/README.md`](data/README.md) §4。
 
@@ -97,7 +97,7 @@ anomaly-atlas --help
 
 > 表中**数据剖面**一行已由实测覆盖（M1）：同一个 CSV 连续两次 `profile` 输出逐字节一致，且源码直跑与 `pip install -e .` 安装面产出同一份字节。**检测与 Episode**、**run-spec 可复算**两行已由 M2 的 `selftest` 与 `tests/test_detect.py` 覆盖（全段对账、冻结指纹、参数面逐项"改即变"、双跑逐字节）。**浏览器复算结论**一行已由 M3 覆盖：`examples/atlas.html` 里那份手写镜像在 Node 下重算出的规范 JSON 与 sha256 与构建值逐字节相等，篡改一个内联样本必 MISMATCH 且首个差异点落在被篡改的 series（`tests/test_mirror.py` 逐条钉住，含"Node 缺失必须 exit 4"）。**图上的每个坐标与每条阈值线**、**滑杆重算结论**两行由 M4 覆盖：`tests/test_layout.py` 逐条钉住整数几何与三种纹理的结构性差异，`tests/test_render.py` 钉住页面组件、打印样式、零外链常驻断言与"基线下滑杆复算 == 构建指纹"（浏览器实测；`tests/test_render.py` 另有一条 `--narrative` 注入外链/`$` 必被构造期拦下的用例）。**报告中的每个数字**一行由 M5 覆盖：`tests/test_report.py` 钉住抽取（阿拉伯/千分位/百分号/科学计数法/中文量词）、"未命中必须列全"、Episode 引用与行号门禁、CLI 三档退出码与零副作用；`tests/test_facts.py` 钉住台账的唯一性与可独立复算（分箱覆盖度由同一份 `layout.density_bins` 产出，`n_covered ≤ n_valid` 且比值可由已发布的分子分母重算）；`selftest` 的第 6 项检查（含探针）在冻结数据上实跑这条门禁。可直接复制的验证命令见上方的 `check-report` / `render --narrative` 两行。
 
-## 使用方式（M1–M5 全部落地，可实跑）
+## 使用方式（M1–M6 全部落地，可实跑）
 
 ```bash
 # 1. 数据剖面 + 质量卡（M1 已落地，可实跑）
@@ -154,7 +154,7 @@ data/synthetic/ data/truth/ M1 冻结产物：合成时序 + 植入真值 + 真�
 data/samples/               最小示例 CSV
 examples/atlas.html         M4 完整标注图（单文件、零外链、断网可开；由 render / mirror_parity --build 重建）
 tests/                      pytest 套件（含真值对账、双跑一致、零外链、整数几何、Node 对账与篡改定位、可证伪探针）
-plan/                       题目文档、架构、模块详设、数据计划、里程碑、交付对标、决策记录、自评表、HANDOFF
+plan/                       题目文档、架构、模块详设、数据计划、里程碑、交付对标、决策记录、自评表、发布留档、HANDOFF
 ```
 
 ## 已知环境问题
@@ -165,6 +165,7 @@ plan/                       题目文档、架构、模块详设、数据计划�
 - **源码直跑 vs 安装跑**：`PYTHONPATH=src` 是源码直跑口径；`pip install -e .` 后 `anomaly-atlas` 命令等价，且该命令只有 Python 标准库依赖（零第三方运行时依赖）。
 - **数字白名单是值级门禁**：它保证"这个数字在档案里有出处"，不保证"这个数字被用在了正确的地方"——一个恰好等于某条事实的编造数字能通过（例如把"653 个异常点"写成"178 个异常点"，而 178 也是 Episode 总数）。要判断"用得对不对"，读页面上的 Episode 卡片与质量卡。
 - **`verify` / `mirror_parity` 需要 Node**（本机实测 `node v24.15.0`；CI 的 windows/ubuntu runner 都预装）：Node 不在时以退出码 **4** 明确失败，并给出两条补救路径（装 Node，或直接在浏览器打开 HTML 看徽章），**不回退、不静默跳过**。JS 镜像随包分发（`anomaly_atlas/mirror/zaa_mirror.js`，wheel 内含），所以安装面同样能跑复算。
+- **CI 的 step `name` 必须加引号**（M6 首推实测）：`.github/workflows/ci.yml` 里若 `name:` 的值含裸 `: `（例如 `CLI smoke (selftest: ...)`），GitHub 会判定工作流 YAML 非法并**不派发任何 job**，run 只显示一个没有 job 的 failure。改 CI 后请在本地先做一次 YAML 解析（`yaml.safe_load`），再推。
 
 ## 边界与 roadmap（首期不做）
 

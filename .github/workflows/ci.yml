@@ -71,6 +71,24 @@ jobs:
           python -c "from anomaly_atlas import render;t=open('out/render-a.html',encoding='utf-8').read();render.assert_no_external_resources(t);render.assert_no_template_slots(t);print('zero external resources + no surviving slot asserted at the artifact layer')"
       - name: CLI smoke (render via the bare console script)
         run: anomaly-atlas render data/samples/minimal.csv -o out/render-minimal.html
+      # M5: the report number whitelist. `detect` exports the ledger and `check-report` gates a
+      # narrative against it -- and the negative half is the point: a fabricated number must be
+      # refused with exit 1 while a narrative of citations passes with 0. A step that only ran the
+      # happy path would pass for a gate that accepts everything.
+      - name: CLI smoke (check-report: citations pass, a fabricated number is refused)
+        run: |
+          python -m anomaly_atlas.cli detect data/synthetic/series.csv --out-dir out/facts
+          python -c "import pathlib,sys;pathlib.Path('narrative-ok.txt').write_text('共 178 段异常、653 个异常点。',encoding='utf-8');pathlib.Path('narrative-bad.txt').write_text('共 987654321 段异常。',encoding='utf-8');sys.exit(0 if pathlib.Path('out/facts/facts.json').is_file() else 1)"
+          python -m anomaly_atlas.cli check-report --facts out/facts/facts.json --text narrative-ok.txt
+          python -c "import subprocess,sys;r=subprocess.run([sys.executable,'-m','anomaly_atlas.cli','check-report','--facts','out/facts/facts.json','--text','narrative-bad.txt'],capture_output=True,text=True);print(r.stdout+r.stderr);sys.exit(0 if r.returncode==1 and '987654321' in r.stdout and 'report NOT generated' in r.stdout else 1)"
+      - name: CLI smoke (check-report via the bare console script)
+        run: anomaly-atlas check-report --facts out/facts/facts.json --text narrative-ok.txt
+      - name: CLI smoke (render refuses a narrative with a fabricated number, writes nothing)
+        run: |
+          python -c "import subprocess,sys,pathlib;out=pathlib.Path('out/atlas-bad-narrative.html');r=subprocess.run([sys.executable,'-m','anomaly_atlas.cli','render','data/synthetic/series.csv','-o',str(out),'--narrative','narrative-bad.txt'],capture_output=True,text=True);print(r.stdout+r.stderr);sys.exit(0 if r.returncode==1 and not out.exists() else 1)"
+      - name: CLI smoke (no command answers exit code 3 any more)
+        run: |
+          python -c "from anomaly_atlas import cli;assert cli.STAGE_NOT_READY=={}, cli.STAGE_NOT_READY;assert not hasattr(cli,'EXIT_NOT_READY');print('stage-not-ready registry is empty and the constant is gone')"
       # M3: the browser recomputation gate. Node is preinstalled on the runners, but the presence
       # check is explicit -- the gate answers exit 4 when Node is missing, and a step that silently
       # degraded into "nothing to check" would be exactly the failure mode the contract forbids.

@@ -20,7 +20,7 @@ import re
 
 import pytest
 
-from anomaly_atlas import canon, csvio, detect, layout, mirror, render
+from anomaly_atlas import canon, cli, csvio, detect, layout, mirror, render, report
 
 from conftest import MINIMAL_CSV, REPO_ROOT, SERIES_CSV, iter_floats, read_bytes, read_text
 
@@ -271,14 +271,83 @@ class TestTheBuilderAssertsAtItsOwnExit:
 
     def test_a_dollar_from_the_narrative_is_refused_by_the_builder(self, frozen):
         parsed, run_document, anomaly_set, detections = frozen
-        with pytest.raises(ValueError):
-            render.build_view_html(parsed, run_document, anomaly_set, detections, None, "价格 $5")
+        # No digits in this narrative on purpose: the whitelist gate runs first, and a `$` test that
+        # went red at the gate would stop proving anything about the slot assertion at the exit.
+        with pytest.raises(ValueError) as exc:
+            render.build_view_html(parsed, run_document, anomaly_set, detections, None, "价格符号 $")
+        assert not isinstance(exc.value, report.NarrativeRejected)
 
     def test_the_narrative_is_escaped_into_the_page(self, frozen):
         parsed, run_document, anomaly_set, detections = frozen
         html = render.build_view_html(parsed, run_document, anomaly_set, detections, None, "<b>粗体</b>")
         assert "&lt;b&gt;粗体&lt;/b&gt;" in html
         assert "<b>粗体</b>" not in html
+
+
+class TestTheNarrativeIsGatedBeforeAnythingIsWritten:
+    """M5: an unvalidated report cannot reach the page -- the gate is in `build_view_html`, so there
+    is no code path that assembles an artifact from a narrative nobody checked."""
+
+    def test_a_narrative_of_citations_lands_with_its_gate_banner(self, frozen):
+        parsed, run_document, anomaly_set, detections = frozen
+        html = render.build_view_html(
+            parsed,
+            run_document,
+            anomaly_set,
+            detections,
+            None,
+            "共 178 段异常、653 个异常点。",
+        )
+        assert "已通过数字白名单门禁" in html
+        assert "全部命中" in html
+
+    def test_an_invented_number_is_refused_by_the_builder(self, frozen):
+        parsed, run_document, anomaly_set, detections = frozen
+        with pytest.raises(report.NarrativeRejected) as exc:
+            render.build_view_html(
+                parsed, run_document, anomaly_set, detections, None, "共 987654321 段异常。"
+            )
+        assert [violation["kind"] for violation in exc.value.violations] == ["number"]
+        assert exc.value.violations[0]["token"] == "987654321"
+
+    def test_an_invented_episode_is_refused_by_the_builder(self, frozen):
+        parsed, run_document, anomaly_set, detections = frozen
+        with pytest.raises(report.NarrativeRejected):
+            render.build_view_html(
+                parsed, run_document, anomaly_set, detections, None, "nonesuch-E777 值得复盘。"
+            )
+
+    def test_the_cli_refuses_and_writes_no_artifact(self, tmp_path, capsys):
+        narrative = tmp_path / "narrative.txt"
+        narrative.write_text("共 987654321 段异常，nonesuch-E777 也在。", encoding="utf-8")
+        out_path = tmp_path / "atlas.html"
+        code = cli.main(
+            [
+                "render",
+                SERIES_CSV,
+                "-o",
+                str(out_path),
+                "--narrative",
+                str(narrative),
+            ]
+        )
+        err = capsys.readouterr().err
+        assert code == cli.EXIT_FAIL
+        assert not out_path.exists()
+        assert "987654321" in err and "nonesuch-E777" in err
+        assert err.count("MISS[") == 2
+
+    def test_the_cli_writes_the_artifact_when_the_narrative_passes(self, tmp_path, capsys):
+        narrative = tmp_path / "narrative.txt"
+        narrative.write_text("共 178 段异常。", encoding="utf-8")
+        out_path = tmp_path / "atlas.html"
+        code = cli.main(
+            ["render", SERIES_CSV, "-o", str(out_path), "--narrative", str(narrative)]
+        )
+        capsys.readouterr()
+        assert code == cli.EXIT_OK
+        assert out_path.exists()
+        assert "已通过数字白名单门禁" in out_path.read_text(encoding="utf-8")
 
 
 class TestThePrimaryViewIsDeterministic:

@@ -1163,17 +1163,37 @@ def cmd_detect(csv_path, spec_path, out_dir):
 
     run_document, anomaly_set = detect_all(parsed, resolved)
     digest = canon.canonical_digest(anomaly_set)
+    # The fact ledger (M5) is exported from the conclusions the archive was assembled from -- the run
+    # document, the anomaly set and the profile -- so a report's numbers are citations of this run
+    # and nothing else. Its density bins reuse `layout`'s single definition of the strip at the
+    # default presentation bin width: a presentation knob, which never reaches the archive
+    # fingerprint (D22).
+    from . import facts as facts_module
+    from . import layout as layout_module
+    from . import profile as profile_module
+
+    facts_document = facts_module.build_facts(
+        run_document,
+        anomaly_set,
+        profile_document=profile_module.build_profile(parsed),
+        rows_by_series=parsed.rows_by_series,
+        heat_bin_ms=layout_module.DEFAULT_HEAT_BIN_MS,
+    )
     try:
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
         _write_bytes(os.path.join(out_dir, "run.json"), canon.canonical_json_bytes(run_document))
         _write_bytes(os.path.join(out_dir, "anomalies.json"), canon.canonical_json_bytes(anomaly_set))
+        _write_bytes(
+            os.path.join(out_dir, "facts.json"), canon.canonical_json_bytes(facts_document)
+        )
         _write_bytes(os.path.join(out_dir, "anomaly_set.sha256"), (digest + "\n").encode("utf-8"))
     except OSError as exc:
         print("error: cannot write into %s: %s" % (out_dir, exc), file=sys.stderr)
         return EXIT_USAGE
 
     summary = anomaly_set["summary"]
+    n_facts, n_numeric, n_known_episodes = facts_module.ledger_summary(facts_document)
     print(
         "detect: %d episode(s) from %d detection(s) over %d series; period_points=%d (%s)"
         % (
@@ -1185,6 +1205,10 @@ def cmd_detect(csv_path, spec_path, out_dir):
         )
     )
     print("anomaly-set sha256 %s" % digest)
+    print(
+        "facts.json: %d fact(s) (%d numeric, %d episode id(s) resolvable)"
+        % (n_facts, n_numeric, n_known_episodes)
+    )
     return EXIT_OK
 
 

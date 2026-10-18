@@ -19,6 +19,8 @@ Checks (each one is a claim the archive makes about itself):
      run-spec is inside the fingerprint, so this holds even for a parameter that happens not to
      move a detection).
   5. profile-double-run-byte-identical -- the M1 guarantee still holds after M2 landed.
+  6. report-number-whitelist         -- a narrative made of ledger citations passes, and an invented
+     count / episode / row is refused and listed (M5: the model's forbidden zone is a code gate).
 
 Every check carries a *falsification probe*: a deliberate defect that must turn that check red. A
 check whose probe does not go red is reported as a failure, not as a pass -- otherwise the whole
@@ -35,7 +37,7 @@ import shutil
 import sys
 import tempfile
 
-from . import canon, csvio, detect, profile
+from . import canon, csvio, detect, facts, layout, profile, report
 
 # The anomaly-set digest of the frozen fixture under the default spec. Pinned as a literal on
 # purpose: reading it back out of the artifact would make the check compare the artifact with
@@ -109,6 +111,8 @@ class Fixture(object):
         self.truth = json.loads(_read_text(os.path.join(root, "data", "truth", "truth.json")))
         self._parsed = None
         self._anomaly_set = None
+        self._run_document = None
+        self._ledger = None
 
     def path(self, relative):
         return os.path.join(self.root, relative.replace("/", os.sep))
@@ -117,8 +121,29 @@ class Fixture(object):
         """`(parsed, anomaly_set)` for the frozen CSV under the default spec."""
         if self._anomaly_set is None:
             self._parsed = csvio.load_series(self.path("data/synthetic/series.csv"))
-            _run, self._anomaly_set = detect.detect_all(self._parsed, detect.resolve_spec())
+            self._run_document, self._anomaly_set = detect.detect_all(
+                self._parsed, detect.resolve_spec()
+            )
         return self._parsed, self._anomaly_set
+
+    def run_document(self):
+        """The run document of that same single default-spec run."""
+        if self._run_document is None:
+            self.run()
+        return self._run_document
+
+    def ledger(self):
+        """`facts.json` for the frozen fixture, at the default presentation bin width (M5)."""
+        if self._ledger is None:
+            parsed, anomaly_set = self.run()
+            self._ledger = facts.build_facts(
+                self._run_document,
+                anomaly_set,
+                profile_document=profile.build_profile(parsed),
+                rows_by_series=parsed.rows_by_series,
+                heat_bin_ms=layout.DEFAULT_HEAT_BIN_MS,
+            )
+        return self._ledger
 
 
 # ---------------------------------------------------------------------------
@@ -391,12 +416,86 @@ def _profile_bytes(csv_path, spec=None):
     return canon.canonical_json_bytes(profile.build_profile(parsed, spec))
 
 
+# ---------------------------------------------------------------------------
+# Check 6: the report number whitelist (M5)
+# ---------------------------------------------------------------------------
+
+# The number the probe injects. Chosen to be far outside anything the fixture can produce, and
+# verified absent from the ledger before the probe trusts its own verdict.
+FABRICATED_COUNT = 987654321
+
+
+def _narrative_from_ledger(ledger):
+    """A narrative assembled out of the ledger's own values -- true by construction.
+
+    Building it from the ledger (rather than from literals) is what makes the check about the *gate*
+    instead of about the fixture: whatever the archive says, this text cites it and must pass.
+    """
+    facts_table = ledger["facts"]
+    episode_id = ledger["catalog"]["episode_ids"][0]
+    return (
+        "共 %s 段 Episode、%s 个异常点。最严重的一段是 %s，起于 row %s、止于 row %s，"
+        "峰值得分 %s。"
+        % (
+            facts_table["episodes.total"]["value"],
+            facts_table["detections.total"]["value"],
+            episode_id,
+            facts_table["episode.%s.start_row" % episode_id]["value"],
+            facts_table["episode.%s.end_row" % episode_id]["value"],
+            facts_table["episode.%s.peak_score_q" % episode_id]["value"],
+        )
+    )
+
+
+def _check_number_whitelist(fixture):
+    """A narrative made of ledger citations passes; the ledger is complete for the archive."""
+    ledger = fixture.ledger()
+    narrative = _narrative_from_ledger(ledger)
+    violations = report.check_report(narrative, ledger)
+    if violations:
+        return False, "a narrative built from the ledger was rejected: %r" % (
+            violations[0]["token"],
+        )
+    n_facts, n_numeric, n_episodes = facts.ledger_summary(ledger)
+    return True, "ledger has %d fact(s) (%d numeric, %d episode id(s)); its own citations pass" % (
+        n_facts,
+        n_numeric,
+        n_episodes,
+    )
+
+
+def _probe_number_whitelist(fixture):
+    """A fabricated count, an invented episode and an invented row must all be refused, all listed."""
+    ledger = fixture.ledger()
+    scaled = facts.scaled_value(
+        {"kind": facts.KIND_INT, "value": FABRICATED_COUNT}, ledger["quant_decimals"]
+    )
+    if scaled in facts.numeric_index(ledger):
+        return False, "the probe's injected number is a real fact; the probe would prove nothing"
+    text = "共 %d 段异常，没有 nonesuch-E777 这一段，也不存在 row %d 这一行。" % (
+        FABRICATED_COUNT,
+        FABRICATED_COUNT,
+    )
+    violations = report.check_report(text, ledger)
+    kinds = sorted(set(violation["kind"] for violation in violations))
+    if kinds != ["episode", "number", "row"]:
+        return False, "expected a miss of each kind, got %r" % (kinds,)
+    tokens = [violation["token"] for violation in violations]
+    for expected in (str(FABRICATED_COUNT), "nonesuch-E777", "row %d" % FABRICATED_COUNT):
+        if expected not in tokens:
+            return False, "the injected %r was not among the misses: %r" % (expected, tokens)
+    return True, "an invented count, episode and row are all refused (%d miss(es) listed)" % (
+        len(violations),
+    )
+
+
 CHECKS = (
     ("frozen-artifacts-ledgered", _check_frozen_ledger, _probe_frozen_ledger),
     ("truth-reconciliation", _check_reconciliation, _probe_reconciliation),
     ("fixture-digest-frozen", _check_fixture_digest, _probe_fixture_digest),
     ("parameter-change-moves-digest", _check_parameter_sensitivity, _probe_parameter_sensitivity),
     ("profile-double-run-byte-identical", _check_profile_double_run, _probe_profile_double_run),
+    ("report-number-whitelist", _check_number_whitelist, _probe_number_whitelist),
 )
 
 

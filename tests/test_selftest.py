@@ -39,7 +39,7 @@ class TestFixtureDiscovery:
 
 class TestChecksAreGreen:
     def test_every_check_is_registered_with_a_probe(self):
-        assert len(selftest.CHECKS) == 5
+        assert len(selftest.CHECKS) == 6
         for name, check, probe in selftest.CHECKS:
             assert name and callable(check) and callable(probe)
 

@@ -41,7 +41,16 @@ import re
 import sys
 from string import Template
 
-from . import canon, csvio, detect, layout, mirror as mirror_module, profile as profile_module
+from . import (
+    canon,
+    csvio,
+    detect,
+    facts as facts_module,
+    layout,
+    mirror as mirror_module,
+    profile as profile_module,
+    report as report_module,
+)
 
 # The page title. It names the milestone on purpose: a reader of the committed file must be able to
 # tell which artifact they are holding, and the test suite pins the same string.
@@ -475,10 +484,21 @@ def build_view_html(
     narrative=None,
     profile_document=None,
 ):
-    """Render the full annotated artifact, and assert at the exit that it is self-contained."""
+    """Render the full annotated artifact, and assert at the exit that it is self-contained.
+
+    A narrative is gated here, at the artifact's own construction: the numbers are checked against a
+    fact ledger built from *this* archive, and any miss raises `report.NarrativeRejected` before a
+    single byte is written. There is therefore no code path that produces a page carrying an
+    unvalidated report (plan/01 M5 "报告生成中止").
+    """
     resolved_render = layout.resolve_render_spec(render_spec)
     if profile_document is None:
         profile_document = profile_module.build_profile(parsed)
+    narrative_gate = None
+    if narrative:
+        narrative_gate = _gate_narrative(
+            parsed, run_document, anomaly_set, profile_document, narrative, resolved_render
+        )
     payload = build_payload(parsed, run_document, anomaly_set, detections)
     digest = payload["anomaly_set_sha256"]
 
@@ -585,7 +605,7 @@ def build_view_html(
         heat_bin_ms=heat_bin_ms,
         top_count=min(len(anomaly_set["episodes"]), 5),
         top_rows=_top_rows(anomaly_set["episodes"], 5),
-        narrative_block=_narrative_block(narrative),
+        narrative_block=_narrative_block(narrative, narrative_gate),
         payload_id=mirror_module.SCRIPT_ID_PAYLOAD,
         mirror_id=mirror_module.SCRIPT_ID_MIRROR,
         boot_id=SCRIPT_ID_BOOT,
@@ -1078,15 +1098,47 @@ def _top_rows(episodes, limit):
     return "\n    ".join(rows)
 
 
-def _narrative_block(narrative):
+def _gate_narrative(parsed, run_document, anomaly_set, profile_document, narrative, render_spec):
+    """Run the number whitelist over a narrative; raise with every miss, or return the counts.
+
+    The ledger is built here from the same archive the page is built from -- at the artifact's own
+    bin width, so a narrative may cite the density strip's coverage and the gate will agree with the
+    strip on screen.
+    """
+    ledger = facts_module.build_facts(
+        run_document,
+        anomaly_set,
+        profile_document=profile_document,
+        rows_by_series=parsed.rows_by_series,
+        heat_bin_ms=render_spec["heat_bin_ms"],
+    )
+    result = report_module.audit(narrative, ledger)
+    if result["violations"]:
+        raise report_module.NarrativeRejected(result["violations"])
+    return {
+        "summary": report_module.gate_summary(result),
+        "n_facts": len(ledger["facts"]),
+        "n_episodes": len(ledger["catalog"]["episode_ids"]),
+    }
+
+
+def _narrative_block(narrative, gate=None):
     if not narrative:
         return (
-            '<p class="meta">报告区暂不含自由叙事：M5 的 <code>check-report</code> 会给本区的每个数字'
-            "挂 <code>facts.json</code> 白名单，在那之前这里只列档案自身的结论。</p>"
+            '<p class="meta">报告区暂不含自由叙事：把模型撰写的叙事（引用 <code>episode_id</code>、'
+            "行号与档案里的数字）写成文本，用 <code>render --narrative &lt;path&gt;</code> 交上来；"
+            "每个数字都要命中 <code>facts.json</code> 白名单，未命中则整份报告不生成（exit 1）。</p>"
         )
+    banner = (
+        '<p class="meta">数字白名单：%s 全部命中 <code>facts.json</code>（%d 条事实，'
+        "%d 个 episode_id 可解析）；未命中即 exit 1 且不生成产物。</p>"
+        % (gate["summary"], gate["n_facts"], gate["n_episodes"])
+        if gate
+        else ""
+    )
     return (
-        '<h3>叙事（来自 --narrative，未经 M5 数字白名单校验）</h3><pre>%s</pre>'
-        % _escape(narrative)
+        '<h3>叙事（<code>--narrative</code>，已通过数字白名单门禁）</h3>%s<pre>%s</pre>'
+        % (banner, _escape(narrative))
     )
 
 
@@ -1096,8 +1148,11 @@ def _narrative_block(narrative):
 
 
 def cmd_render(csv_path, out_path, spec_path=None, narrative_path=None):
-    """CLI body for `render`: 0 on success, 2 on any usage/input error, nothing written on 2."""
-    from .cli import EXIT_OK, EXIT_USAGE
+    """CLI body for `render`: 0 on success, 1 when a narrative fails the whitelist, 2 on usage.
+
+    Nothing is written on 1 or 2 -- a rejected report leaves no half-built artifact behind.
+    """
+    from .cli import EXIT_FAIL, EXIT_OK, EXIT_USAGE
 
     spec = None
     if spec_path:
@@ -1159,6 +1214,15 @@ def cmd_render(csv_path, out_path, spec_path=None, narrative_path=None):
         run_document, anomaly_set = write_view_resolved(
             parsed, out_path, resolved, resolved_render, narrative
         )
+    except report_module.NarrativeRejected as rejected:
+        # The whitelist gate refused the report, so nothing was written: list every miss, not just
+        # the first, and answer exit 1 (a defect found by a gate, K1/D8).
+        _warn(
+            "narrative failed the facts.json whitelist: %d unmatched reference(s); report NOT "
+            "generated" % len(rejected.violations)
+        )
+        report_module.render_violations(rejected.violations, sys.stderr)
+        return EXIT_FAIL
     except OSError as exc:
         _warn("cannot write %s: %s" % (out_path, exc))
         return EXIT_USAGE

@@ -58,16 +58,16 @@ def _argv_with_existing_inputs(command, tmp_path):
 
 
 class TestExitCodeContract:
-    """plan/02 section 5 / plan/06 D8: 0 ok, 1 gate defect, 2 usage, 3 not ready, 4 env."""
+    """plan/02 section 5 / plan/06 D8: 0 ok, 1 gate defect, 2 usage, 4 env. `3` is retired (M5)."""
 
     def test_codes_are_distinct_and_pinned(self):
-        assert (
-            cli.EXIT_OK,
-            cli.EXIT_FAIL,
-            cli.EXIT_USAGE,
-            cli.EXIT_NOT_READY,
-            cli.EXIT_ENV,
-        ) == (0, 1, 2, 3, 4)
+        assert (cli.EXIT_OK, cli.EXIT_FAIL, cli.EXIT_USAGE, cli.EXIT_ENV) == (0, 1, 2, 4)
+
+    def test_the_not_ready_constant_is_gone(self):
+        # Retiring the last registry key deletes the constant itself (K1): a `3` left behind would
+        # be an invitation for a "not ready" answer to grow back.
+        assert not hasattr(cli, "EXIT_NOT_READY")
+        assert 3 not in (cli.EXIT_OK, cli.EXIT_FAIL, cli.EXIT_USAGE, cli.EXIT_ENV)
 
     def test_no_args_is_usage_error(self, capsys):
         assert cli.main([]) == cli.EXIT_USAGE
@@ -129,28 +129,32 @@ class TestCommandRegistryConsistency:
         assert set(cli.COMMANDS) == set(_ARGS_BY_COMMAND) == set(_INPUT_FILES)
 
 
-class TestStageNotReadyRegistry:
-    """plan/06 D14: "not implemented" is expressed by exit code 3, never by a fake body."""
+class TestExitCodeThreeIsRetired:
+    """plan/06 D14 + D23: every module landed, so no command answers 3 any more.
 
-    def test_registry_is_a_subset_of_commands(self):
+    Asserted positively -- by running each command -- rather than by inspecting the (now empty)
+    registry: "the dictionary happens to have no keys" is not evidence about what the CLI answers.
+    """
+
+    def test_the_registry_is_empty(self):
+        assert cli.STAGE_NOT_READY == {}
+
+    def test_every_command_is_in_the_public_list(self):
         assert set(cli.STAGE_NOT_READY) <= set(cli.COMMANDS)
 
-    def test_registry_maps_every_command_to_a_milestone(self):
-        for command, milestone in cli.STAGE_NOT_READY.items():
-            assert re.match(r"^M\d+$", milestone), (command, milestone)
-
-    @pytest.mark.parametrize("command", sorted(_ARGS_BY_COMMAND))
-    def test_not_ready_exits_three_and_names_its_milestone(self, command, tmp_path, capsys):
-        # Parameterized over the whole command set (not over the registry) so that a landed
-        # command cannot silently keep answering 3: the case stays and goes red once the
-        # key is removed without the dispatch being wired.
+    @pytest.mark.parametrize(
+        "command", sorted(command for command in _ARGS_BY_COMMAND if command != "selftest")
+    )
+    def test_no_command_answers_three(self, command, tmp_path, capsys):
+        # Dummy inputs (the files exist but are not valid) reach the real dispatch and come back with
+        # a usage error -- never with 3. `selftest` is excluded because running it for real costs a
+        # full fixture sweep; the registry emptiness above covers it structurally.
         argv = _argv_with_existing_inputs(command, tmp_path)
-        if command not in cli.STAGE_NOT_READY:
-            pytest.skip("command landed; contract covered by its own milestone test file")
-        assert cli.main(argv) == cli.EXIT_NOT_READY
-        err = capsys.readouterr().err
-        assert command in err
-        assert cli.STAGE_NOT_READY[command] in err
+        assert cli.main(argv) != 3
+        capsys.readouterr()
+
+    def test_selftest_does_not_answer_three_either(self):
+        assert "selftest" not in cli.STAGE_NOT_READY
 
 
 class _FakeStdio:

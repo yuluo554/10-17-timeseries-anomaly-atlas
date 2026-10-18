@@ -4,12 +4,13 @@ Exit codes (locked in tests):
   0 = success
   1 = gate / selftest found a defect (product is wrong)
   2 = usage / input error (missing file, schema failure, unknown subcommand)
-  3 = stage not ready (module not landed yet; skeleton-only marker, retired per milestone)
   4 = environment precondition unmet (e.g. `verify` cannot find Node) -- never silent-skip
 
-`3` is a skeleton-phase marker: each time a module lands, its key is removed from
-STAGE_NOT_READY in the same commit (constant -> CLI -> tests -> docs -> decision record,
-five places in sync). When STAGE_NOT_READY is empty, EXIT_NOT_READY is deleted outright.
+`3` was the skeleton-phase "stage not ready" marker. Every module has landed, so the marker is gone
+in M5: `STAGE_NOT_READY` is an empty registry and `EXIT_NOT_READY` no longer exists. Retiring a key
+is one commit across five places (constant -> CLI -> tests -> docs -> decision record, K1); retiring
+the last key also deletes the constant, and the test suite asserts "no command answers 3" positively
+instead of trusting a dictionary that happens to be empty.
 """
 
 import argparse
@@ -19,20 +20,16 @@ import sys
 EXIT_OK = 0
 EXIT_FAIL = 1
 EXIT_USAGE = 2
-EXIT_NOT_READY = 3
 EXIT_ENV = 4
 
 # Every subcommand. Public so that tests can assert the help text, the stage marker and
 # the input-precondition table stay in sync whenever a command is added.
 COMMANDS = ("profile", "detect", "render", "verify", "check-report", "selftest")
 
-# command -> milestone that lands it. Empty = nothing left unwired anywhere.
-# `render` was retired here in M4 (2026-10-18): the annotated view landed, so the key went away in
-# the same commit as the real dispatch, its tests, the docs and decision record D22 (K1, five
-# places in sync). `check-report` is the last one left.
-STAGE_NOT_READY = {
-    "check-report": "M5",
-}
+# command -> milestone that lands it. Empty: every command in COMMANDS is wired to a real body.
+# `profile`/`detect`/`selftest` retired in M1-M2, `verify` in M3 (D21), `render` in M4 (D22) and
+# `check-report` in M5 (D23), which is the key that emptied the registry and removed the constant.
+STAGE_NOT_READY = {}
 
 
 def _ensure_utf8_stdio():
@@ -130,21 +127,12 @@ def main(argv=None):
         parser.print_help(sys.stderr)
         return EXIT_USAGE
 
-    # Input preconditions are checked before the stage marker, and the file check sits in
-    # front of the not-yet-landed import: "your path is wrong" is a usage error whether or
-    # not the command's module has landed, and this ordering keeps that contract testable
-    # from M0 for every command.
+    # Input preconditions come first: "your path is wrong" is a usage error, never a verdict about
+    # the data. This ordering has been part of the contract since M0 and is exercised for every
+    # command.
     for dest, what in _REQUIRED_INPUTS.get(args.command, ()):
         if not _require_file(getattr(args, dest), what):
             return EXIT_USAGE
-
-    if args.command in STAGE_NOT_READY:
-        print(
-            "stage not ready: '%s' is scheduled for milestone %s (skeleton only, no fake output)"
-            % (args.command, STAGE_NOT_READY[args.command]),
-            file=sys.stderr,
-        )
-        return EXIT_NOT_READY
 
     if args.command == "profile":
         from .profile import cmd_profile

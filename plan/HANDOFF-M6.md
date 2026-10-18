@@ -7,7 +7,7 @@
 - **M1–M5 全部落地，六个子命令全部真实可跑**：`profile` / `detect`（含 `facts.json`）/ `selftest`（6 检查 + 6 探针）/ `verify` / `render`（含 `--narrative` 门禁）/ **`check-report`**。今天的 M5 新增：`facts.py`（台账）、`report.py`（数字 + episode 引用 + 行号三门）、`detect` 落 `facts.json`、`render --narrative` 构造期门禁、`selftest` 第 6 项检查、`SKILL.md`、README 定稿、`plan/自评表.md`。
 - **退出码 3 已整项退役**：`cli.STAGE_NOT_READY = {}`（空注册表）、**`cli.EXIT_NOT_READY` 常量已删除**、CLI 的 not-ready 分支已删、`tests/test_skeleton.py::TestStageNotReadyRegistry` **整类退役**换成 `TestExitCodeThreeIsRetired`（跑遍每个命令断言"没有任何命令答 3"）、CI 加同款断言。现行契约 = **0 / 1 / 2 / 4**。**M6 不要再加任何退出码**——五档变四档是 M5 的收口结果，回退等于把骨架期语义带进发布版。
 - **证据（本轮实测，全部来自"最后一份代码"）**：
-  - **三处全绿、0 skip**：`py -3.12`（127.5 s）/ `py -3.8`（145.5 s）/ 干净 venv（3.12 + `pip install -e ".[dev]"`，62.4 s），各 **602 passed, 0 skipped**。三个数字都来自加完测试后的重跑；单次时长的差异主要来自机器负载（3.12 那一跑前后还跑过别的重活），**别把单次时长当跨版本证据**。
+  - **三处全绿、0 skip**：`py -3.12`（75.7 s）/ `py -3.8`（110.6 s）/ 干净 venv（3.12 + `pip install -e ".[dev]"`，86.1 s），各 **603 passed, 0 skipped**（三个数字与时长都来自提交后的重跑）。三个数字都来自加完测试后的重跑；单次时长的差异主要来自机器负载（3.12 那一跑前后还跑过别的重活），**别把单次时长当跨版本证据**。
   - **`facts.json`**：`detect --out-dir` 现在落 4 个文件（run.json / anomalies.json / facts.json / anomaly_set.sha256）。台账实测 **1861 条事实（1682 数值 + 179 文本）/ 178 个 episode id / 138 个档案行号 / 84 个分箱**，321 KB 上下；只含整数与 6 位定点串（`_check_value` 入口拦类型 + `canon.assert_hashable` 出口拦浮点），**无 ISO 串**（Episode 起止以 `start_ms`/`end_ms` 落盘），键排序 + 同输入两次构建**逐字节相同**。
   - **门禁双向可证伪**：干净叙事 `check-report` exit 0；编造数字（`987654321`）/ 编造 episode（`nonesuch-E777`）/ 档案外行号（`row 987654321`）**逐条列出**（token + 偏移 + 上下文 + 最接近的事实）并 exit 1；`render --narrative` 在**构造期**跑同一门禁，未通过 **exit 1 且一个字节都不写**（实测产物不存在）。
   - **变异验证 27/27 全红**，每条都**指名了变红的测试**，三条断言（marker 唯一 → 字节已变 → 还原逐字节一致）全过。**另抓出 3 条测试侧缺陷**（已修）：(a) 百分号比值那条断言写成"违规 token 里不含某 fact_id"——**不可能失败的断言**；(b) episode 门改用 series id 时，挑的"编造即拒绝"测试**仍绿**（编造的 series 也不在 series 表里），真正能区分的是"真引用必须通过"那一类——**靶子必须挑到能区分的断言上**；(c) `facts.json` 形状检查漏 `catalog` 原本没有测试覆盖（补了"缺 catalog 必须 exit 2"）。
@@ -68,7 +68,7 @@
 
 - 用 `py` 不是 `python`；一律 `py -X utf8`。本机 **3.8.8 与 3.12.10** 两条通道；每棒双解释器全量跑。`python` 是微软商店占位符（直接跑会以 exit 49 失败）。
 - 全程 `PYTHONDONTWRITEBYTECODE=1`；源模式跑测：`PYTHONPATH="$PWD/src" PYTHONDONTWRITEBYTECODE=1 py -3.12 -X utf8 -m pytest tests/ -q`。
-- 全量套件时长（本轮实测）：3.12 127.5 s / 3.8 145.5 s / 干净 venv 62.4 s。**差异主要是机器负载与 .pyc 缓存策略**（venv 跑没设 `PYTHONDONTWRITEBYTECODE`），别把单次时长当跨版本证据。
+- 全量套件时长（本轮实测，提交后重跑）：3.12 75.7 s / 3.8 110.6 s / 干净 venv 86.1 s。**差异主要是机器负载与 .pyc 缓存策略**，别把单次时长当跨版本证据；**603 这个数才是证据**，时长不是。
 - pip 装包必须 `NO_PROXY="*" no_proxy="*"` + 清华镜像；`py -3.12 -m venv .venv-verify` + `pip install -e ".[dev]"` 一次成功；**验证用 venv 用完立刻删**。
 - **`py -3.12 -m venv` 里没有 setuptools**：想在本机打 wheel 必须先 `pip install setuptools wheel`。
 - Git Bash 的 `/tmp` 与 Windows 原生 Python 不通：临时文件用仓库内相对目录（`.tmp/`，已 gitignore）。

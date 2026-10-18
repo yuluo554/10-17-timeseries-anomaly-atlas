@@ -1,4 +1,4 @@
-"""M3 gate: Node recomputation parity for an artifact, and the carrier-page builder.
+"""M3 gate: Node recomputation parity for an artifact, and the artifact builder.
 
 Usage:
   python tools/mirror_parity.py --html <artifact> [--node <exe>] [--tamper-index <n>]
@@ -15,9 +15,9 @@ them: series, then row) is displaced by a large deterministic offset, and the ru
 without naming the series it broke, is reported as a failure -- otherwise a green tick could mean
 "the gate is broken" rather than "the artifact is right".
 
-`--build` writes the M3 minimal carrier page (the embedding contract landed in `render.py`; M4
-reuses it for the full annotated view). It exists so the artifact CI verifies is *built* by the
-repository, not hand-maintained.
+`--build` writes the annotated artifact (the embedding contract landed in M3; M4 fills in the
+annotated view over it). It exists so the artifact CI verifies is *built* by the repository, not
+hand-maintained.
 
 Exit codes (plan/06 D8): 0 verified / 1 mismatch or failed probe / 2 usage or input error /
 4 environment precondition unmet (no Node -- never a silent skip).
@@ -34,7 +34,7 @@ if os.path.isdir(_SRC) and _SRC not in sys.path:
 
 from anomaly_atlas import canon, mirror  # noqa: E402
 from anomaly_atlas.cli import _ensure_utf8_stdio  # noqa: E402  (K10: single definition point)
-from anomaly_atlas.render import write_carrier  # noqa: E402
+from anomaly_atlas.render import write_view  # noqa: E402
 
 DEFAULT_CSV = os.path.join(_REPO_ROOT, "data", "synthetic", "series.csv")
 
@@ -51,7 +51,7 @@ def _load_spec(path):
 
 
 def _build(out_path, csv_path, spec_path):
-    """Build the carrier page and report the digest it committed to."""
+    """Build the artifact and report the digest it committed to."""
     spec = None
     if spec_path:
         if not os.path.isfile(spec_path):
@@ -66,9 +66,9 @@ def _build(out_path, csv_path, spec_path):
         print("error: CSV not found: %s" % csv_path, file=sys.stderr)
         return 2
     try:
-        _run_document, anomaly_set = write_carrier(csv_path, out_path, spec)
+        _run_document, anomaly_set = write_view(csv_path, out_path, spec)
     except Exception as exc:  # a build failure is an input problem, reported with its reason
-        print("error: cannot build the carrier page: %s" % (exc,), file=sys.stderr)
+        print("error: cannot build the artifact: %s" % (exc,), file=sys.stderr)
         return 2
     print("built %s" % out_path)
     print("anomaly-set sha256 %s" % canon.canonical_digest(anomaly_set))
@@ -82,7 +82,7 @@ def main(argv=None):
         description="Run an artifact's inlined JS mirror under Node and compare it with the build fingerprint.",
     )
     parser.add_argument("--html", default=None, help="Artifact to verify (the M3 hard gate).")
-    parser.add_argument("--build", default=None, help="Build the M3 carrier page at this path.")
+    parser.add_argument("--build", default=None, help="Build the artifact at this path.")
     parser.add_argument("--csv", default=DEFAULT_CSV, help="CSV for --build (default: the frozen fixture).")
     parser.add_argument("--spec", default=None, help="Run-spec JSON for --build.")
     parser.add_argument("--node", default="node", help="Node executable name or path.")
@@ -96,7 +96,7 @@ def main(argv=None):
 
     if args.html is None and args.build is None:
         parser.print_help(sys.stderr)
-        print("error: give --html (verify) and/or --build (build the carrier page)", file=sys.stderr)
+        print("error: give --html (verify) and/or --build (build the artifact)", file=sys.stderr)
         return 2
 
     if args.build is not None:

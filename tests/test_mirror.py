@@ -72,9 +72,9 @@ def frozen():
 
 @pytest.fixture(scope="module")
 def artifact(tmp_path_factory, frozen):
-    """A real carrier page on disk -- `verify` and the parity tool both take a path."""
-    path = os.path.join(str(tmp_path_factory.mktemp("carrier")), "carrier.html")
-    render.write_carrier(SERIES_CSV, path)
+    """A real artifact on disk -- `verify` and the parity tool both take a path."""
+    path = os.path.join(str(tmp_path_factory.mktemp("artifact")), "atlas.html")
+    render.write_view(SERIES_CSV, path)
     return path
 
 

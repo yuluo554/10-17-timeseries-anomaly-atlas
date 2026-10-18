@@ -58,15 +58,29 @@ jobs:
         run: anomaly-atlas detect data/samples/minimal.csv --out-dir out/smoke-minimal
       - name: CLI smoke (selftest: ledger + truth reconciliation + digest tripwire + probes)
         run: python -m anomaly_atlas.cli selftest
+      # M4: the annotated view. Two runs of one input must be byte-identical, and the artifact must
+      # stay self-contained -- both asserted here again on a freshly built file, not only on the
+      # committed one (a builder that regressed would otherwise hide behind a stale example).
+      - name: CLI smoke (render, offline, two runs byte-identical)
+        run: |
+          python -m anomaly_atlas.cli render data/synthetic/series.csv -o out/render-a.html
+          python -m anomaly_atlas.cli render data/synthetic/series.csv -o out/render-b.html
+          python -c "import pathlib,sys;a=pathlib.Path('out/render-a.html').read_bytes();b=pathlib.Path('out/render-b.html').read_bytes();print('artifact bytes',len(a));sys.exit(0 if a==b else 1)"
+      - name: CLI smoke (the rendered artifact is self-contained: no external resource, no request)
+        run: |
+          python -c "from anomaly_atlas import render;t=open('out/render-a.html',encoding='utf-8').read();render.assert_no_external_resources(t);render.assert_no_template_slots(t);print('zero external resources + no surviving slot asserted at the artifact layer')"
+      - name: CLI smoke (render via the bare console script)
+        run: anomaly-atlas render data/samples/minimal.csv -o out/render-minimal.html
       # M3: the browser recomputation gate. Node is preinstalled on the runners, but the presence
       # check is explicit -- the gate answers exit 4 when Node is missing, and a step that silently
       # degraded into "nothing to check" would be exactly the failure mode the contract forbids.
       - name: Node is present (the recomputation gate is never silently skipped)
         run: node --version
-      - name: CLI smoke (carrier page + Node recomputation parity)
+      - name: CLI smoke (artifact + Node recomputation parity)
         run: |
-          python tools/mirror_parity.py --build out/carrier.html
-          python -m anomaly_atlas.cli verify out/carrier.html
+          python tools/mirror_parity.py --build out/atlas-built.html
+          python -m anomaly_atlas.cli verify out/atlas-built.html
+          python -m anomaly_atlas.cli verify out/render-a.html
           python -m anomaly_atlas.cli verify examples/atlas.html
       - name: CLI smoke (verify tampers one inline point: must MISMATCH, localise, exit 1)
         run: |

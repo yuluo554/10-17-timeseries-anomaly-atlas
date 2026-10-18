@@ -27,8 +27,10 @@ EXIT_ENV = 4
 COMMANDS = ("profile", "detect", "render", "verify", "check-report", "selftest")
 
 # command -> milestone that lands it. Empty = nothing left unwired anywhere.
+# `render` was retired here in M4 (2026-10-18): the annotated view landed, so the key went away in
+# the same commit as the real dispatch, its tests, the docs and decision record D22 (K1, five
+# places in sync). `check-report` is the last one left.
 STAGE_NOT_READY = {
-    "render": "M4",
     "check-report": "M5",
 }
 

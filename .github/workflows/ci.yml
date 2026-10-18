@@ -56,7 +56,7 @@ jobs:
           python -c "import hashlib,pathlib,sys;p=pathlib.Path('out/smoke-a/anomalies.json');d=hashlib.sha256(p.read_bytes()).hexdigest();r=pathlib.Path('out/smoke-a/anomaly_set.sha256').read_text().strip();print('anomaly-set sha256',d);sys.exit(0 if d==r else 1)"
       - name: CLI smoke (detect via the bare console script)
         run: anomaly-atlas detect data/samples/minimal.csv --out-dir out/smoke-minimal
-      - name: CLI smoke (selftest: ledger + truth reconciliation + digest tripwire + probes)
+      - name: "CLI smoke (selftest: ledger + truth reconciliation + digest tripwire + probes)"
         run: python -m anomaly_atlas.cli selftest
       # M4: the annotated view. Two runs of one input must be byte-identical, and the artifact must
       # stay self-contained -- both asserted here again on a freshly built file, not only on the
@@ -66,7 +66,7 @@ jobs:
           python -m anomaly_atlas.cli render data/synthetic/series.csv -o out/render-a.html
           python -m anomaly_atlas.cli render data/synthetic/series.csv -o out/render-b.html
           python -c "import pathlib,sys;a=pathlib.Path('out/render-a.html').read_bytes();b=pathlib.Path('out/render-b.html').read_bytes();print('artifact bytes',len(a));sys.exit(0 if a==b else 1)"
-      - name: CLI smoke (the rendered artifact is self-contained: no external resource, no request)
+      - name: "CLI smoke (the rendered artifact is self-contained: no external resource, no request)"
         run: |
           python -c "from anomaly_atlas import render;t=open('out/render-a.html',encoding='utf-8').read();render.assert_no_external_resources(t);render.assert_no_template_slots(t);print('zero external resources + no surviving slot asserted at the artifact layer')"
       - name: CLI smoke (render via the bare console script)
@@ -75,13 +75,13 @@ jobs:
       # narrative against it -- and the negative half is the point: a fabricated number must be
       # refused with exit 1 while a narrative of citations passes with 0. A step that only ran the
       # happy path would pass for a gate that accepts everything.
-      - name: CLI smoke (check-report: citations pass, a fabricated number is refused)
+      - name: "CLI smoke (check-report: citations pass, a fabricated number is refused)"
         run: |
           python -m anomaly_atlas.cli detect data/synthetic/series.csv --out-dir out/facts
           python -c "import pathlib,sys;pathlib.Path('narrative-ok.txt').write_text('共 178 段异常、653 个异常点。',encoding='utf-8');pathlib.Path('narrative-bad.txt').write_text('共 987654321 段异常。',encoding='utf-8');sys.exit(0 if pathlib.Path('out/facts/facts.json').is_file() else 1)"
           python -m anomaly_atlas.cli check-report --facts out/facts/facts.json --text narrative-ok.txt
           python -c "import subprocess,sys;r=subprocess.run([sys.executable,'-m','anomaly_atlas.cli','check-report','--facts','out/facts/facts.json','--text','narrative-bad.txt'],capture_output=True,text=True);print(r.stdout+r.stderr);sys.exit(0 if r.returncode==1 and '987654321' in r.stdout and 'report NOT generated' in r.stdout else 1)"
-      - name: CLI smoke (check-report via the bare console script)
+      - name: "CLI smoke (check-report via the bare console script)"
         run: anomaly-atlas check-report --facts out/facts/facts.json --text narrative-ok.txt
       - name: CLI smoke (render refuses a narrative with a fabricated number, writes nothing)
         run: |
@@ -100,7 +100,7 @@ jobs:
           python -m anomaly_atlas.cli verify out/atlas-built.html
           python -m anomaly_atlas.cli verify out/render-a.html
           python -m anomaly_atlas.cli verify examples/atlas.html
-      - name: CLI smoke (verify tampers one inline point: must MISMATCH, localise, exit 1)
+      - name: "CLI smoke (verify tampers one inline point: must MISMATCH, localise, exit 1)"
         run: |
           python -c "import subprocess,sys;r=subprocess.run([sys.executable,'-m','anomaly_atlas.cli','verify','examples/atlas.html','--tamper-index','3'],capture_output=True,text=True);print(r.stdout+r.stderr);sys.exit(0 if r.returncode==1 and 'MISMATCH' in r.stderr and 'energy_kwh' in r.stdout else 1)"
       - name: CLI smoke (verify without Node exits 4, never 0)

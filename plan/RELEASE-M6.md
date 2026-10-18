@@ -36,10 +36,13 @@
 | 2 | push | `refs/heads/main` | `da2a9c2` | 39087657970 | `da2a9c2` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
 | 3 | push | `refs/tags/v0.1.0`（第 1 次建 ref，lightweight 指向 commit） | `da2a9c2` | 39087971984 | `da2a9c2` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
 | 4 | push | `refs/tags/v0.1.0`（删掉重建，改指 annotated tag 对象 `5ad560a5`） | `da2a9c2` | 39088141703 | `da2a9c2` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
+| 5 | push | `refs/heads/main`（M6 留档与状态回写） | `5751434` | 39089535330 | `5751434` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
 
-- 事件数 = 4，run 数 = 4，**无遗漏、无重复 run**；每个 run 的 `head_sha` 都等于对应事件的 sha。
+- 事件数 = 5，run 数 = 5，**无遗漏、无重复 run**；每个 run 的 `head_sha` 都等于对应事件的 sha。
+- **截止点**：本表记录到 `5751434`。本文件自身的更新提交（只改 `plan/`，不动代码与冻结资产）会再产生一个同类事件；判据相同（四矩阵全绿 + `head_sha` 相同），不再逐行追加——如果最后一次提交的 run 是红的，说明文档改动破坏了某个测试，应当当场修而不是记一行。
 - 第 1 条是首推，红了——原因不是代码，是工作流 YAML 本身（详见 §3）。这正是 HANDOFF-M6 §1「CI 本轮新增的 5 步 M5 冒烟均未实跑」所留的缺口，首推把它暴露出来了。
 - 第 3/4 条是 tag ref 的**两次真实写入**：本机 `git push` 因连接超时无法完成，改由 API 建 ref；第一次建的是 lightweight ref，随后为满足"annotated tag"口径删掉重建为指向 tag 对象的 ref。两次写入各触发一个 run，都绿——按"每个 ref 写入事件恰一次 run"记账，两条各自成立。
+- 第 5 条是 M6 留档提交（`5751434`），四矩阵同样全绿，说明文档改动没有碰到任何门禁。
 - 表中 `head_sha` 是 tag 事件解引用后的 commit sha；tag 对象本身是 `5ad560a507b91b839a919ab2439ea02fd665208b`。
 - 各 job 的矩阵腿与耗时（第 2 条）：windows/3.8、ubuntu/3.8、ubuntu/3.12 均约 2 分钟，windows/3.12 约 2 分 45 秒。
 

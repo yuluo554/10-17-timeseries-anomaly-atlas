@@ -7,7 +7,7 @@
 
 - **发布完成**：仓库 <https://github.com/yuluo554/10-17-timeseries-anomaly-atlas>（public，`main` 为默认分支），tag `v0.1.0`（annotated 对象 `5ad560a507b91b839a919ab2439ea02fd665208b` → commit `da2a9c20a00f14b56a0ffd0ed2f4b76907a12952`），Release 五个附件。留档：[`plan/RELEASE-M6.md`](RELEASE-M6.md)。
 - **CI 四矩阵全绿**：windows/ubuntu × 3.8/3.12。`main` 与 tag 的 push 各一 run，均 4/4 success。
-- **CI 对账**：事件 4 条 ↔ run 4 条，`head_sha` 全部对上（每条 run 的 `head_sha` 见 RELEASE-M6 §2）。
+- **CI 对账**：事件 5 条 ↔ run 5 条，`head_sha` 全部对上（每条 run 的 `head_sha` 见 RELEASE-M6 §2）。
   - 首推 `2239f3e` **红过**：workflow YAML 里 5 处 step `name` 含裸 `: `，GitHub 判定文件非法、**一个 job 都没派发**。修复提交 `da2a9c2` 加引号后复验。这是 HANDOFF-M6 §1 那条"CI 新步骤未实跑"缺口的真实兑现。
 - **发布物本体已验**（全部在仓库外目录）：
   - `gh release download v0.1.0 -D .tmp/rel` → 5 附件 sha256 与本地逐条相同（`atlas.html` `9de5a102…` / `series.csv` `4e644ff2…` / `manifest.json` `9a47138a…` / `truth.json` `0ef1169b…` / `hash.txt` `50c4de14…`）。

@@ -7,7 +7,9 @@
 
 - **发布完成**：仓库 <https://github.com/yuluo554/10-17-timeseries-anomaly-atlas>（public，`main` 为默认分支），tag `v0.1.0`（annotated 对象 `5ad560a507b91b839a919ab2439ea02fd665208b` → commit `da2a9c20a00f14b56a0ffd0ed2f4b76907a12952`），Release 五个附件。留档：[`plan/RELEASE-M6.md`](RELEASE-M6.md)。
 - **CI 四矩阵全绿**：windows/ubuntu × 3.8/3.12。`main` 与 tag 的 push 各一 run，均 4/4 success。
-- **CI 对账**：事件 5 条 ↔ run 5 条，`head_sha` 全部对上（每条 run 的 `head_sha` 见 RELEASE-M6 §2）。
+- **CI 对账**：截至发布动作结束共 6 条 push 事件 ↔ 6 条 run，`head_sha` 全部对上（逐条见 RELEASE-M6 §2，第 1 条是首推失败，其余全绿）。
+  - 对账表之后的文档提交也按同一判据单独核对过：`5751434` → run 39089535330 success、`d2b15cd` → run 39089756812 success、`99d0d0c` → run 39089997417 success，均四矩阵全绿。
+  - **承载对账表的提交本身不进表**（写进去就又要再提交一次，永远差一条）；收录口径写在 RELEASE-M6 §2 的"截止点与元事件"。跟随这条口径的人只需核对"一事件一 run + `head_sha` 相同 + 四矩阵全绿"——这一判据对任何后续提交都适用。
   - 首推 `2239f3e` **红过**：workflow YAML 里 5 处 step `name` 含裸 `: `，GitHub 判定文件非法、**一个 job 都没派发**。修复提交 `da2a9c2` 加引号后复验。这是 HANDOFF-M6 §1 那条"CI 新步骤未实跑"缺口的真实兑现。
 - **发布物本体已验**（全部在仓库外目录）：
   - `gh release download v0.1.0 -D .tmp/rel` → 5 附件 sha256 与本地逐条相同（`atlas.html` `9de5a102…` / `series.csv` `4e644ff2…` / `manifest.json` `9a47138a…` / `truth.json` `0ef1169b…` / `hash.txt` `50c4de14…`）。

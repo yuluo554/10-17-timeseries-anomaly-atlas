@@ -39,12 +39,15 @@
 | 4 | push | `refs/tags/v0.1.0`（删掉重建，改指 annotated tag 对象 `5ad560a5`） | `da2a9c2` | 39088141703 | `da2a9c2` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
 | 5 | push | `refs/heads/main`（M6 留档与状态回写） | `5751434` | 39089535330 | `5751434` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
 | 6 | push | `refs/heads/main`（对账表补记） | `d2b15cd` | 39089756812 | `d2b15cd` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
+| 7 | push | `refs/heads/main`（对账收录口径） | `99d0d0c` | 39089997417 | `99d0d0c` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
+| 8 | push | `refs/heads/main`（HANDOFF 末次核对） | `9aa1fef` | 39090510615 | `9aa1fef` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
+| 9 | push | `refs/heads/main`（tag 覆盖范围口径） | `e418494` | 39090721055 | `e418494` | windows/ubuntu × 3.8/3.12 全 success | ✅ success |
 
-- 事件数 = 6，run 数 = 6，**无遗漏、无重复 run**；每个 run 的 `head_sha` 都等于对应事件的 sha。
-- **截止点与元事件**：本表记录到 `d2b15cd`。承载这张表的提交本身也会产生一次 push 事件——如果把它也写进表，就又要再提交一次，永远差一条。因此本表的**收录口径**是"发布动作及其直接产物"，承载表格的那次提交按同一判据（一事件一 run、`head_sha` 相同、四矩阵全绿）单独核对并在 `plan/HANDOFF-RELEASE.md` 与本轮对话里点名，不写进表。表内没有任何一条 run 被合并、跳过或推测；第 1 行的失败也是收录对象。
+- 事件数 = 9，run 数 = 9，**无遗漏、无重复 run**；每个 run 的 `head_sha` 都等于对应事件的 sha。
+- **截止点与元事件**：本表记录到 `e418494`。承载这张表的提交本身也会产生一次 push 事件——如果把它也写进表，就又要再提交一次，永远差一条。因此本表的**收录口径**是"截至记录点的全部 push 事件；承载表格的那一次单独核对、不写进表"。自第 5 行起全是**只改文档**的提交（`plan/`、`README.md`），它们的 run 全绿即证明文档改动没有碰到任何门禁。表内没有任何一条 run 被合并、跳过或推测；第 1 行的失败也是收录对象。
 - 第 1 条是首推，红了——原因不是代码，是工作流 YAML 本身（详见 §3）。这正是 HANDOFF-M6 §1「CI 本轮新增的 5 步 M5 冒烟均未实跑」所留的缺口，首推把它暴露出来了。
 - 第 3/4 条是 tag ref 的**两次真实写入**：本机 `git push` 因连接超时无法完成，改由 API 建 ref；第一次建的是 lightweight ref，随后为满足"annotated tag"口径删掉重建为指向 tag 对象的 ref。两次写入各触发一个 run，都绿——按"每个 ref 写入事件恰一次 run"记账，两条各自成立。
-- 第 5 条是 M6 留档提交（`5751434`），四矩阵同样全绿，说明文档改动没有碰到任何门禁。
+- 第 5–9 条是 M6 收尾的**纯文档提交**（`5751434` → `e418494`），四矩阵同样全绿，说明文档改动没有碰到任何门禁。
 - 表中 `head_sha` 是 tag 事件解引用后的 commit sha；tag 对象本身是 `5ad560a507b91b839a919ab2439ea02fd665208b`。
 - 各 job 的矩阵腿与耗时（第 2 条）：windows/3.8、ubuntu/3.8、ubuntu/3.12 均约 2 分钟，windows/3.12 约 2 分 45 秒。
 
@@ -55,7 +58,7 @@
 - 根因：`.github/workflows/ci.yml` 里 5 个 step 的 `name:` 用了不带引号的标量，值里含 `: `（如 `name: CLI smoke (selftest: ledger + ...)`）。YAML 把第二个冒号当成 mapping 分隔符，整个文件解析失败。
 - 本地等价校验漏掉它的原因：此前只跑过 `pytest` 与命令本身，**从未对 workflow 做 YAML 解析**。
 - 修复：`da2a9c2` 给这 5 处 `name` 加双引号，并在本地用 `yaml.safe_load` 解析一遍（26 个 step、四矩阵、`on: [push, pull_request, workflow_dispatch]` 全部读出）。
-- 修复后：`main` 与 `tag` 两次 push 的四矩阵全绿（表 §2 第 2–4 行）。
+- 修复后：`main` 与 `tag` 两次 push 的四矩阵全绿（表 §2 第 2–4 行）。此后每一次文档提交（第 5–9 行）也都全绿。
 
 ## 4. 发布物本体已验（真下载 + 中立目录）
 

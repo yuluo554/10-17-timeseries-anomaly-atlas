@@ -8,9 +8,9 @@
 - **发布完成**：仓库 <https://github.com/yuluo554/10-17-timeseries-anomaly-atlas>（public，`main` 为默认分支），tag `v0.1.0`（annotated 对象 `5ad560a507b91b839a919ab2439ea02fd665208b` → commit `da2a9c20a00f14b56a0ffd0ed2f4b76907a12952`），Release 五个附件。留档：[`plan/RELEASE-M6.md`](RELEASE-M6.md)。
 - **CI 四矩阵全绿**：windows/ubuntu × 3.8/3.12。`main` 与 tag 的 push 各一 run，均 4/4 success。
 - **CI 对账**：`plan/RELEASE-M6.md` §2 是**截至 `189f716` 的 10 条事件快照**（9 绿 1 红，红的是首推，已修），`head_sha` 全部对上。
-  - 之后只改了文档；每次提交都按同一判据核对过（一事件一 run + `head_sha` 相同 + 四矩阵全绿）。核对方式：
+  - 快照之后只剩**纯文档提交**（本文件与 RELEASE-M6 的措辞修正）；每一次都按同一判据核对过：`f944443` 等提交的 run 均四矩阵全绿、`head_sha` 与提交相同。核对方式：
     `gh api "repos/.../actions/runs?per_page=20" --jq '.workflow_runs[] | "\(.id) \(.event) \(.head_branch) \(.head_sha[0:7]) \(.conclusion)"'`，与 `gh api repos/.../commits/main` 对照。
-  - 承载对账表的提交本身不进表（否则永远差一条）；表是快照，不是实时总数。
+  - 承载对账表的提交本身不进表（否则永远差一条）；表是快照，不是实时总数。判据本身（一事件一 run + `head_sha` 相同 + 四矩阵全绿）对任何后续提交都适用。
   - 首推 `2239f3e` **红过**：workflow YAML 里 5 处 step `name` 含裸 `: `，GitHub 判定文件非法、**一个 job 都没派发**。修复提交 `da2a9c2` 加引号后复验。这是 HANDOFF-M6 §1 那条"CI 新步骤未实跑"缺口的真实兑现。
 - **发布物本体已验**（全部在仓库外目录）：
   - `gh release download v0.1.0 -D .tmp/rel` → 5 附件 sha256 与本地逐条相同（`atlas.html` `9de5a102…` / `series.csv` `4e644ff2…` / `manifest.json` `9a47138a…` / `truth.json` `0ef1169b…` / `hash.txt` `50c4de14…`）。

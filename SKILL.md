@@ -16,7 +16,7 @@ description: 把一份 CSV 时间序列变成"可复算的异常档案"——单
 
 ## 四步工作流
 
-以下命令用**源码直跑**口径（`PYTHONPATH=src`）；`pip install -e .` 之后用 `anomaly-atlas` 子命令等价（省掉 `PYTHONPATH` 与 `-m` 前缀）。需要 Python >= 3.8，零第三方运行时依赖；复算门禁需要 Node（缺失会明确 exit 4）。
+以下命令用**源码直跑**口径（`PYTHONPATH=src`）；`pip install -e .` 之后用 `anomaly-atlas` 子命令等价（省掉 `PYTHONPATH` 与 `-m` 前缀）。需要 Python >= 3.12，零第三方运行时依赖；复算门禁需要 Node（缺失会明确 exit 4）。
 
 ```bash
 # 0. 环境

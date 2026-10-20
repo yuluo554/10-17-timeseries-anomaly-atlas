@@ -5,10 +5,14 @@ after `pip install -e .` (CI). They import the package instead of loading cli.py
 path, so relative imports inside the package behave exactly as they do for users.
 """
 
+import codecs
 import io
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tarfile
 
 import pytest
 
@@ -212,6 +216,136 @@ def _scan_for_sentinels(root):
                             if token in line:
                                 hits.append((os.path.relpath(path, root).replace("\\", "/"), lineno, token))
     return hits
+
+
+def _git_archive_entries(root):
+    """[(relpath, bytes)] for the committed tree at HEAD.
+
+    The snapshot is what `git archive` / a fresh clone ships -- not the working tree. Those
+    differ on purpose: with the global `core.autocrlf=true` this machine had, three files sat
+    in the working tree as CRLF while their blobs (and therefore every clone) were LF. So the
+    claim "the snapshot is LF, BOM-free and strictly UTF-8" can only be checked against bytes
+    that came out of git.
+    """
+    proc = subprocess.run(
+        ["git", "archive", "--format=tar", "HEAD"],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+    entries = []
+    with tarfile.open(fileobj=io.BytesIO(proc.stdout)) as tar:
+        for member in tar.getmembers():
+            if member.isfile():
+                entries.append((member.name, tar.extractfile(member).read()))
+    return entries
+
+
+_TREE_SKIP_DIRS = frozenset(("__pycache__", ".git", ".pytest_cache", "build", "dist", ".venv-diag"))
+
+# This project's own payload: present in the archive and in an extracted sdist alike.
+# Build-tool output (PKG-INFO, setup.cfg, *.egg-info) is deliberately out of scope -- it is
+# generated after the snapshot, and on Windows setuptools writes those two with CRLF.
+_PAYLOAD_DIRS = ("src", "tests", "tools", "data", "examples")
+_PAYLOAD_FILES = ("LICENSE", "README.md", "SKILL.md", "pyproject.toml", "MANIFEST.in")
+
+# The archive is the whole tracked set; an sdist carries the payload but not .github/ etc.
+_ARCHIVE_FILES_FLOOR = 60
+_TREE_FILES_FLOOR = 40
+
+
+def _read_bytes(path):
+    with io.open(path, "rb") as handle:
+        return handle.read()
+
+
+def _tree_entries(root):
+    """Fallback for an extracted sdist: it carries no `.git`, and there the tree payload *is*
+    the snapshot (the sdist is built from the tagged tree)."""
+    paths = []
+    for base in _PAYLOAD_DIRS:
+        for dirpath, dirnames, filenames in os.walk(os.path.join(root, base)):
+            dirnames[:] = [
+                d for d in dirnames if d not in _TREE_SKIP_DIRS and not d.endswith(".egg-info")
+            ]
+            paths.extend(os.path.join(dirpath, name) for name in sorted(filenames))
+    paths.extend(
+        os.path.join(root, name) for name in _PAYLOAD_FILES if os.path.isfile(os.path.join(root, name))
+    )
+    return [(os.path.relpath(p, root).replace("\\", "/"), _read_bytes(p)) for p in paths]
+
+
+def _snapshot_entries(root):
+    """(entries, source) for the snapshot of `root`."""
+    if os.path.isdir(os.path.join(root, ".git")) and shutil.which("git"):
+        return _git_archive_entries(root), "git-archive"
+    return _tree_entries(root), "tree"
+
+
+def _encoding_violations(entries):
+    """[(relpath, kind)] for every entry whose bytes break the snapshot invariant."""
+    hits = []
+    for relpath, data in entries:
+        if b"\r" in data:
+            hits.append((relpath, "CR"))
+        if codecs.BOM_UTF8 in data:
+            hits.append((relpath, "BOM"))
+        try:
+            data.decode("utf-8")
+        except UnicodeDecodeError:
+            hits.append((relpath, "not strict UTF-8"))
+    return hits
+
+
+class TestSnapshotEncoding:
+    """The snapshot encoding claim, as a gate.
+
+    `plan/RELEASE-M6.md` section 5 states that the archive/clone snapshot is "no CRLF, no BOM,
+    strictly UTF-8 decodable" -- and until now nothing in the repository checked it. The claim is
+    about the *snapshot* (git archive at HEAD; an extracted sdist has no .git and is itself a
+    snapshot), never about the working tree, which may legitimately carry CRLF on an
+    `autocrlf=true` machine.
+
+    If a binary ever lands here (png/pdf/...), `.gitattributes` must mark it `-text` and this gate
+    must learn to skip it -- deliberately, not by loosening the assertions.
+    """
+
+    def test_snapshot_scope_covers_the_payload(self):
+        # A scan that reads nothing reports "clean" for the same reason an empty directory does:
+        # pin the payload it must have seen before trusting its verdict.
+        entries, source = _snapshot_entries(_REPO)
+        names = set(name for name, _ in entries)
+        for required in (
+            "tests/conftest.py",
+            "tools/mirror_parity.py",
+            "tools/gen_synthetic_series.py",
+            "data/synthetic/series.csv",
+            "data/synthetic/manifest.json",
+            "data/truth/truth.json",
+            "data/truth/hash.txt",
+            "data/samples/minimal.csv",
+            "examples/atlas.html",
+        ):
+            assert required in names, "%s missing from the %s scan" % (required, source)
+        floor = _ARCHIVE_FILES_FLOOR if source == "git-archive" else _TREE_FILES_FLOOR
+        assert len(names) >= floor, "%s scan saw only %d files" % (source, len(names))
+
+    def test_snapshot_is_lf_without_bom_and_strict_utf8(self):
+        entries, _source = _snapshot_entries(_REPO)
+        assert _encoding_violations(entries) == []
+
+    def test_scanner_detects_injected_cr_bom_and_bad_byte(self):
+        # Mutation: all three properties must be individually falsifiable, or this could be a
+        # gate that reports "clean" for bytes it never decoded.
+        injected = [
+            ("ok.txt", b"lf only\n"),
+            ("cr.txt", b"a\r\nb"),
+            ("bom.txt", codecs.BOM_UTF8 + b"x"),
+            ("bad.txt", b"\xff\xfe"),
+        ]
+        found = dict(_encoding_violations(injected))
+        assert found == {"cr.txt": "CR", "bom.txt": "BOM", "bad.txt": "not strict UTF-8"}
 
 
 class TestNoSentinelStubs:

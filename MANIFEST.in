@@ -1,0 +1,21 @@
+# The sdist has to be self-sufficient: `pytest` collects tests/conftest.py and reads the
+# frozen fixtures, the generator ledger and the committed example artifact; `selftest`
+# reads data/synthetic/ + data/truth/. Without these the sdist extracts to a tree that
+# cannot even collect (measured 2026-10-20: tests/conftest.py, tools/, data/ and examples/
+# were all absent from the sdist).
+#
+# The wheel needs none of this -- it ships the package plus its JS mirror, and an installed
+# `verify` works from any CWD. Only `selftest` needs the repository around it, and the
+# README says so.
+#
+# NOTE: these are the *frozen* fixtures travelling with the package, not a place to
+# regenerate them. `tools/gen_synthetic_series.py --check` stays the gate on their bytes;
+# building an sdist from a CRLF working tree would break that ledger in the extracted tree.
+include LICENSE
+include README.md
+include SKILL.md
+include pyproject.toml
+recursive-include tests *.py
+recursive-include tools *.py
+recursive-include data *.csv *.json *.txt *.md
+recursive-include examples *.html

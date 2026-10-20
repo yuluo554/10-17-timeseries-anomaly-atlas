@@ -16,11 +16,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-        python-version: ["3.8", "3.12"]
+        # 3.8 is EOL (2024-10-07), 3.9 is EOL (2025-10-31) and 3.10 is EOL too (2026-10-01);
+        # the floor is 3.12 (EOL 2028-10-31). One supported interpreter per OS: adding a leg
+        # is a deliberate act, not a default.
+        python-version: ["3.12"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # v7: the v4/v5 pair targeted Node 20, and once the runners forced Node 24 every run
+      # printed a deprecation warning (measured 2026-10-20: 4 warnings on the last run).
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dev extra

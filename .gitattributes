@@ -2,7 +2,8 @@
 # normalization never changes bytes and the sha256 ledger in data/synthetic/manifest.json
 # stays valid in any clone. Any future binary or non-LF snapshot MUST be marked `-text`
 # here, otherwise checkout rewrites its bytes and the ledger silently fails
-# (`git status` cannot see it).
+# (`git status` cannot see it). The invariant is gate-checked over the archive snapshot by
+# tests/test_skeleton.py::TestSnapshotEncoding -- add a binary suffix there too.
 * text=auto eol=lf
 *.png binary
 *.pdf binary

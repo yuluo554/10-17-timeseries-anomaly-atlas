@@ -78,10 +78,10 @@
 
 ## 5. 快照编码纪律复核
 
-- `git archive v0.1.0` 解出的 **61 个文件**：无 CRLF、无 BOM、全部可严格 UTF-8 解码。
-- 真实 clone（`git clone --branch v0.1.0`）后同样检查 61 个文件：结果相同。
+- `git archive v0.1.0` 解出的全部跟踪文件（当时 61 个；以 `git ls-files` 的全量为准，不写死数字）：无 CRLF、无 BOM、全部可严格 UTF-8 解码。
+- 真实 clone（`git clone --branch v0.1.0`）后对同一批文件复查：结果相同。
 - `.gitattributes` 的 `* text=auto eol=lf` 在 clone 上生效，`data/synthetic/manifest.json` 的 sha256 台账在 clone 里仍然成立（`--check` 已证）。
-- 这两个检查覆盖的正是 `data/README.md` §5 冻结纪律所依赖的前提。
+- 这两个检查覆盖的正是 `data/README.md` §5 冻结纪律所依赖的前提。**该声明现已由门禁覆盖**：`tests/test_skeleton.py::TestSnapshotEncoding` 扫 `git archive HEAD` 的快照字节（无 CR/BOM、严格 UTF-8），带扫描面自证与"注入 CR/BOM/非法字节必红"的变异探针。
 
 ## 6. 已知环境问题摘要
 

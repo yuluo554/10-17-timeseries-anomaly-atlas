@@ -17,7 +17,7 @@
   - `verify .tmp/rel/atlas.html` → **exit 0 / VERIFIED**（`6020a3d3…`）。
   - 下载的 CSV 重跑 `detect` → 同一指纹 + `facts.json` 1861 条事实。
   - `git clone --branch v0.1.0` 到 `.tmp/clone2` → `selftest` 6 检查 0 失败、`verify` exit 0、生成器 `--check` 逐字节、全量 **603 passed**。
-- **快照编码**：`git archive v0.1.0` 与真 clone 各 61 个文件，无 CRLF、无 BOM、严格 UTF-8 可解码。
+- **快照编码**：`git archive v0.1.0` 与真 clone 对 `git ls-files` 的全量文件（当时 61 个，不写死数字）：无 CRLF、无 BOM、严格 UTF-8 可解码。（该声明现由 `tests/test_skeleton.py::TestSnapshotEncoding` 覆盖。）
 - **本机双解释器**（发布前）：3.12 `603 passed` / 3.8 `603 passed`。
 - **冻结资产零改动**：`data/`、`examples/atlas.html`、`tests/` 内容未改；本轮代码侧唯一改动是 `.github/workflows/ci.yml` 的 5 处引号。
 - **版本一致**：`pyproject.toml` 0.1.0 == `anomaly_atlas.VERSION` 0.1.0 == tag `v0.1.0`。

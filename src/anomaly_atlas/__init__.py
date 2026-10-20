@@ -7,6 +7,6 @@
 版本与规范版本分开：`VERSION` 是包版本，规范 JSON 的形态版本见 `canon.CANON_VERSION`。
 """
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 __all__ = ["VERSION"]

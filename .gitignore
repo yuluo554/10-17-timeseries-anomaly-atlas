@@ -82,3 +82,7 @@ profile.json
 profile-smoke-a.json
 profile-smoke-b.json
 profile-smoke-minimal.json
+
+# Handover scratch (diagnosis + iteration records). No gate reads git status here, so this
+# line is only about not committing the handover directory on a future `git add -A`.
+update/

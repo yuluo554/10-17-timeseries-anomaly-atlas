@@ -12,10 +12,10 @@ anomaly-atlas 的回答是：**异常集由 run-spec 唯一决定，并由读者
 
 ## 当前状态（诚实口径）
 
-本项目按里程碑推进，**M1–M6 全部落地并已发布**：数据剖面 → 检测内核 → 浏览器复算门禁 → 单文件标注图 → 报告层与数字白名单 → **公开发布（tag `v0.1.0` + Release）**。六个子命令全部真实可跑，**退出码 3（阶段未就绪）已全线退役**（`STAGE_NOT_READY` 为空、`EXIT_NOT_READY` 常量已删除，测试正向断言"没有任何命令答 3"）。公开仓库：<https://github.com/yuluo554/10-17-timeseries-anomaly-atlas>。今天真正可用的东西：
+本项目按里程碑推进，**M1–M6 全部落地并已发布**：数据剖面 → 检测内核 → 浏览器复算门禁 → 单文件标注图 → 报告层与数字白名单 → **公开发布（`v0.1.0` 首发，`v0.1.1` 维护版）**。六个子命令全部真实可跑，**退出码 3（阶段未就绪）已全线退役**（`STAGE_NOT_READY` 为空、`EXIT_NOT_READY` 常量已删除，测试正向断言"没有任何命令答 3"）。公开仓库：<https://github.com/yuluo554/10-17-timeseries-anomaly-atlas>。今天真正可用的东西：
 
 ```bash
-# 源码直跑（Python >= 3.8，零第三方依赖；Windows 用 py 而非 python）
+# 源码直跑（Python >= 3.12，零第三方依赖；Windows 用 py 而非 python）
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli --help
 PYTHONPATH=src py -X utf8 -m anomaly_atlas.cli --version
 
@@ -160,8 +160,9 @@ plan/                       题目文档、架构、模块详设、数据计划�
 ## 已知环境问题
 
 - **Windows 用 `py` 不用 `python`**：后者常是微软商店占位符。一律 `py -X utf8`（UTF-8 模式防 cp936 控制台编码坑）。
-- **双解释器**：本仓库在 Python 3.8 与 3.12 双通道下跑全量测试（`py -3.8` / `py -3.12` 可显式指定）。跨版本差异以 CI 四矩阵为准；"本机能跑"不是跨版本证据。
+- **解释器下限 3.12**：本仓库在 Python **3.12** 上跑全量测试（`py -3.12` 可显式指定）。旧的 3.8 通道已退役——3.8 于 2024-10-07 EOL、3.9 于 2025-10-31 EOL、3.10 于 2026-10-01 EOL，而 3.12 的 EOL 是 2028-10-31，所以 CI 矩阵收敛为 `{windows-latest, ubuntu-latest} × 3.12`。跨版本差异以 CI 为准；"本机能跑"不是跨版本证据。
 - **Git Bash 的 `/tmp`**：Windows 原生 Python 看不见 Git Bash 的 `/tmp`，临时文件请用工作区相对路径或系统临时目录。
+- **`selftest` 必须在仓库内跑**（需要冻结夹具）：六个子命令里只有 `selftest` 依赖仓库内的 `data/synthetic/` 与 `data/truth/`。在一个中立 CWD（例如 `%TEMP%`）里用已安装的 `anomaly-atlas` 跑它，会以退出码 **4** 明确失败并打印 `error: frozen fixtures not found from <cwd> -- run 'selftest' inside the repository`（实测：wheel-only 安装 + 中立 CWD）。**其它子命令不受影响**：同环境下 `verify <任意 atlas.html>` 仍 exit 0 / VERIFIED，因为 JS 镜像随包分发。退出码 4 的语义（"环境前提不满足"）本来就覆盖这个情形，所以这是**披露**而非缺陷——本项目**不会**为了让它"看起来能跑"而加一条"找不到夹具就 exit 0"的退化路径。
 - **源码直跑 vs 安装跑**：`PYTHONPATH=src` 是源码直跑口径；`pip install -e .` 后 `anomaly-atlas` 命令等价，且该命令只有 Python 标准库依赖（零第三方运行时依赖）。
 - **数字白名单是值级门禁**：它保证"这个数字在档案里有出处"，不保证"这个数字被用在了正确的地方"——一个恰好等于某条事实的编造数字能通过（例如把"653 个异常点"写成"178 个异常点"，而 178 也是 Episode 总数）。要判断"用得对不对"，读页面上的 Episode 卡片与质量卡。
 - **`verify` / `mirror_parity` 需要 Node**（本机实测 `node v24.15.0`；CI 的 windows/ubuntu runner 都预装）：Node 不在时以退出码 **4** 明确失败，并给出两条补救路径（装 Node，或直接在浏览器打开 HTML 看徽章），**不回退、不静默跳过**。JS 镜像随包分发（`anomaly_atlas/mirror/zaa_mirror.js`，wheel 内含），所以安装面同样能跑复算。

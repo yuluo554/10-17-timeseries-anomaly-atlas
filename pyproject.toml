@@ -1,19 +1,24 @@
 [build-system]
-requires = ["setuptools>=61"]
+# >=77 is the first setuptools that understands the SPDX `license` string and
+# `license-files` (PEP 639); with an older floor the metadata falls back to the deprecated
+# TOML-table form and `python -m build` prints deprecation warnings again.
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "anomaly-atlas"
-version = "0.1.0"
+version = "0.1.1"
 description = "Time series -> reproducible anomaly archive: episodes with detector, params, score and source rows, plus a zero-CDN single-file HTML that recomputes the same sha256"
 readme = "README.md"
-requires-python = ">=3.8"
-license = { text = "MIT" }
+# Floor raised from 3.8 (EOL 2024-10-07) to 3.12 (EOL 2028-10-31); 3.9/3.10 are EOL too.
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "yuluo554" }]
 keywords = ["anomaly-detection", "time-series", "reproducibility", "single-file-html", "agent-skill"]
 classifiers = [
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering :: Information Analysis",
 ]
 dependencies = []
